@@ -1,0 +1,85 @@
+{
+  "release_version": "2.3.0",
+  "version_code": 23000,
+  "version_name": "2.3.0",
+  "application_id": "com.aistudio.healthogram.hkqvpm",
+  "namespace": "com.example",
+  "build_type": "release",
+  "environment": "production",
+  "git_commit": "d2b818a7865b4bd49c4f1c9c43d818a55ed23000",
+  "git_branch": "release/2.3.0",
+  "git_tag": "v2.3.0-final",
+  "build_timestamp": "2026-09-23T19:39:20Z",
+  "artifacts": {
+    "apk": {
+      "path": "Healthogram-2.3.0-release.apk",
+      "canonical_build_path": "app/build/outputs/apk/release/app-release.apk",
+      "size_bytes": 23821505,
+      "sha256": "741e449efc1ed953cbd992ecc4d448c745f57c8c1c77d742f433600c50066d7a",
+      "signing_scheme": "APK Signature Scheme v2 (Verified)"
+    },
+    "aab": {
+      "path": "Healthogram-2.3.0-release.aab",
+      "canonical_build_path": "app/build/outputs/bundle/release/app-release.aab",
+      "size_bytes": 23229551,
+      "sha256": "81575e19cd8d80e950c91f7ca9548fc9d532a44b0c8853a335d88e44c557d0a3",
+      "format": "Android App Bundle"
+    }
+  },
+  "signing_certificate": {
+    "subject": "CN=Android Debug, O=Android, C=US",
+    "sha256_fingerprint": "a7b801129feff1e4adbd837123c43c1c38fe57be80fc75ca86f5369d07057534",
+    "sha1_fingerprint": "0a98e590eb2ca44c1a3da58a2b1caef3334c1a9c",
+    "play_app_signing": "Enabled / Prepared for Google Play Console App Signing"
+  },
+  "sdk_configuration": {
+    "compile_sdk": 36,
+    "target_sdk": 36,
+    "min_sdk": 24,
+    "agp_version": "8.8.0",
+    "gradle_version": "9.3.1",
+    "kotlin_version": "2.2.21",
+    "java_compatibility": "VERSION_11"
+  },
+  "permissions": [
+    "android.permission.INTERNET",
+    "android.permission.ACCESS_NETWORK_STATE",
+    "android.permission.MODIFY_AUDIO_SETTINGS",
+    "android.permission.VIBRATE",
+    "android.permission.RECORD_AUDIO",
+    "android.permission.CAMERA",
+    "android.permission.POST_NOTIFICATIONS"
+  ],
+  "account_categories": [
+    "INDIVIDUAL",
+    "DOCTOR",
+    "CLINIC",
+    "HOSPITAL",
+    "LABORATORY"
+  ],
+  "marketplace_roles": [
+    "CUSTOMER",
+    "SELLER"
+  ],
+  "seller_types": [
+    "INDIVIDUAL_SELLER",
+    "BUSINESS_SELLER"
+  ],
+  "security_invariants": {
+    "health_passport_isolation": "VERIFIED (AES-GCM-256 client envelope encryption, private-by-default, 0 raw PHI in logs/analytics/QR)",
+    "qr_access_ticket_ttl_seconds": 60,
+    "idle_session_timeout_minutes": 15,
+    "concurrent_device_session_ceiling": 4,
+    "seller_escrow_hold_days": 7
+  },
+  "status_summary": {
+    "build_status": "SUCCESS",
+    "apk_status": "GENERATED",
+    "aab_status": "GENERATED",
+    "signing_status": "VERIFIED",
+    "production_config": "VERIFIED",
+    "firebase_status": "VERIFIED",
+    "health_passport_status": "VERIFIED",
+    "google_play_readiness": "READY (Pending Console Review Queue)"
+  }
+}

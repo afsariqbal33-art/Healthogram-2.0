@@ -1,0 +1,166 @@
+{
+  "schema_version": "2.2.0",
+  "environment": "production",
+  "configuration_timestamp": "2026-09-21T15:05:00Z",
+  "active_rollout_stage": "STAGE_B",
+  "current_rollout_percentage": 5,
+  "supported_states": ["ON", "OFF", "MAINTENANCE", "BETA", "COMING_SOON"],
+  "feature_flags": {
+    "healthogram_2_2_enabled": {
+      "state": "ON",
+      "description": "Master release feature gate for 2.2.0 client features",
+      "target_categories": ["Individual", "Doctor", "Clinic", "Hospital", "Laboratory"],
+      "allowed_countries": ["US", "CA", "GB", "SA", "AE", "EG", "IN"]
+    },
+    "social_enabled": {
+      "state": "ON",
+      "description": "Social feed, posts, and patient-doctor community updates",
+      "target_categories": ["Individual", "Doctor", "Clinic", "Hospital", "Laboratory"],
+      "allowed_countries": ["US", "CA", "GB", "SA", "AE", "EG", "IN"]
+    },
+    "reels_enabled": {
+      "state": "ON",
+      "description": "Short-form health education and wellness video reels",
+      "target_categories": ["Individual", "Doctor", "Clinic", "Hospital", "Laboratory"],
+      "allowed_countries": ["US", "CA", "GB", "SA", "AE", "EG", "IN"]
+    },
+    "stories_enabled": {
+      "state": "ON",
+      "description": "24-hour ephemeral wellness updates and provider announcements",
+      "target_categories": ["Individual", "Doctor", "Clinic", "Hospital", "Laboratory"],
+      "allowed_countries": ["US", "CA", "GB", "SA", "AE", "EG", "IN"]
+    },
+    "live_enabled": {
+      "state": "BETA",
+      "description": "Live healthcare seminars and certified provider Q&A sessions",
+      "target_categories": ["Doctor", "Clinic", "Hospital"],
+      "allowed_countries": ["US", "CA", "GB"]
+    },
+    "messaging_enabled": {
+      "state": "ON",
+      "description": "Direct and group patient-provider chat with 2s typing indicator throttle",
+      "target_categories": ["Individual", "Doctor", "Clinic", "Hospital", "Laboratory"],
+      "allowed_countries": ["US", "CA", "GB", "SA", "AE", "EG", "IN"]
+    },
+    "audio_call_enabled": {
+      "state": "ON",
+      "description": "HIPAA-compliant 1-on-1 WebRTC audio teleconsultation",
+      "target_categories": ["Individual", "Doctor", "Clinic", "Hospital"],
+      "allowed_countries": ["US", "CA", "GB", "SA", "AE", "EG", "IN"]
+    },
+    "video_call_enabled": {
+      "state": "ON",
+      "description": "HIPAA-compliant 1-on-1 WebRTC video teleconsultation (no auto-record)",
+      "target_categories": ["Individual", "Doctor", "Clinic", "Hospital"],
+      "allowed_countries": ["US", "CA", "GB", "SA", "AE", "EG", "IN"]
+    },
+    "translation_enabled": {
+      "state": "ON",
+      "description": "Real-time multilingual consultation and caption translation",
+      "target_categories": ["Individual", "Doctor", "Clinic", "Hospital", "Laboratory"],
+      "allowed_countries": ["US", "CA", "GB", "SA", "AE", "EG", "IN"]
+    },
+    "ai_studio_enabled": {
+      "state": "ON",
+      "description": "AI Studio creative assistant for wellness posts and product metadata",
+      "target_categories": ["Individual", "Doctor", "Clinic", "Hospital", "Laboratory"],
+      "allowed_countries": ["US", "CA", "GB", "SA", "AE", "EG", "IN"]
+    },
+    "health_passport_enabled": {
+      "state": "ON",
+      "description": "Zero-trust client-encrypted AES-GCM-256 Health Passport personal records",
+      "target_categories": ["Individual"],
+      "allowed_countries": ["US", "CA", "GB", "SA", "AE", "EG", "IN"]
+    },
+    "health_passport_qr_enabled": {
+      "state": "ON",
+      "description": "Dynamic single-use QR tokens with 60-second TTL (zero raw PHI)",
+      "target_categories": ["Individual"],
+      "allowed_countries": ["US", "CA", "GB", "SA", "AE", "EG", "IN"]
+    },
+    "healthcare_access_grants_enabled": {
+      "state": "ON",
+      "description": "Explicit time-limited consent grants to Doctors, Clinics, Hospitals & Labs",
+      "target_categories": ["Individual", "Doctor", "Clinic", "Hospital", "Laboratory"],
+      "allowed_countries": ["US", "CA", "GB", "SA", "AE", "EG", "IN"]
+    },
+    "fhir_enabled": {
+      "state": "OFF",
+      "description": "Institutional HL7 FHIR R4 interoperability sync",
+      "target_categories": ["Clinic", "Hospital", "Laboratory"],
+      "allowed_countries": []
+    },
+    "health_connect_enabled": {
+      "state": "OFF",
+      "description": "Android Health Connect on-device biometric telemetry sync",
+      "target_categories": ["Individual"],
+      "allowed_countries": []
+    },
+    "appointments_enabled": {
+      "state": "ON",
+      "description": "Provider booking, scheduling slots, and automated reminders",
+      "target_categories": ["Individual", "Doctor", "Clinic", "Hospital"],
+      "allowed_countries": ["US", "CA", "GB", "SA", "AE", "EG", "IN"]
+    },
+    "marketplace_enabled": {
+      "state": "ON",
+      "description": "Country-isolated catalog, cart, and order management for health items",
+      "target_categories": ["Individual", "Doctor", "Clinic", "Hospital", "Laboratory"],
+      "allowed_countries": ["US", "CA", "GB", "SA", "AE", "EG", "IN"]
+    },
+    "seller_center_enabled": {
+      "state": "ON",
+      "description": "Merchant dashboard for verified Individual and Business health sellers",
+      "target_categories": ["Individual", "Doctor", "Clinic", "Hospital", "Laboratory"],
+      "allowed_countries": ["US", "CA", "GB", "SA", "AE", "EG", "IN"]
+    },
+    "payments_enabled": {
+      "state": "ON",
+      "description": "Tokenized payment processing with double-entry ledger bookkeeping",
+      "target_categories": ["Individual", "Doctor", "Clinic", "Hospital", "Laboratory"],
+      "allowed_countries": ["US", "CA", "GB", "SA", "AE", "EG", "IN"]
+    },
+    "delivery_enabled": {
+      "state": "ON",
+      "description": "Local courier dispatch and OTP-verified healthcare parcel delivery",
+      "target_categories": ["Individual", "Doctor", "Clinic", "Hospital", "Laboratory"],
+      "allowed_countries": ["US", "CA", "GB", "SA", "AE", "EG", "IN"]
+    },
+    "owner_earnings_enabled": {
+      "state": "ON",
+      "description": "Platform sovereign fee split, ledger audit trail, and payout controls",
+      "target_categories": ["Individual", "Doctor", "Clinic", "Hospital", "Laboratory"],
+      "allowed_countries": ["US", "CA", "GB", "SA", "AE", "EG", "IN"]
+    },
+    "international_marketplace_enabled": {
+      "state": "OFF",
+      "description": "Cross-border global healthcare commerce (strictly disabled by policy)",
+      "target_categories": [],
+      "allowed_countries": []
+    },
+    "notifications_enabled": {
+      "state": "ON",
+      "description": "FCM notifications with lock-screen minimum necessary privacy",
+      "target_categories": ["Individual", "Doctor", "Clinic", "Hospital", "Laboratory"],
+      "allowed_countries": ["US", "CA", "GB", "SA", "AE", "EG", "IN"]
+    },
+    "admin_features_enabled": {
+      "state": "ON",
+      "description": "Administrative oversight, verification approvals, and compliance tools",
+      "target_categories": ["Doctor", "Clinic", "Hospital", "Laboratory"],
+      "allowed_countries": ["US", "CA", "GB", "SA", "AE", "EG", "IN"]
+    },
+    "owner_features_enabled": {
+      "state": "ON",
+      "description": "Sovereign platform owner financials, fee management, and kill switches",
+      "target_categories": [],
+      "allowed_countries": ["US", "CA", "GB", "SA", "AE", "EG", "IN"]
+    }
+  }
+}
+EOFThe action produced the following result:
+
+The command exited with code 0.
+Stdout:
+
+Stderr:

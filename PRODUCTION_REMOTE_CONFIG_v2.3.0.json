@@ -1,0 +1,77 @@
+{
+  "version": "2.3.0",
+  "environment": "production",
+  "generated_at": "2026-09-23T14:30:00Z",
+  "parameters": {
+    "emergency_switches": {
+      "emergency_maintenance_mode": false,
+      "killswitch_all_traffic": false,
+      "marketplace_killswitch": false,
+      "webrtc_calling_killswitch": false,
+      "ai_generation_killswitch": false,
+      "payments_processing_killswitch": false,
+      "fhir_sync_killswitch": false,
+      "health_connect_killswitch": false,
+      "delivery_dispatch_killswitch": false,
+      "seller_payouts_killswitch": false
+    },
+    "feature_flags": {
+      "health_passport_v2_enabled": true,
+      "health_passport_qr_ttl_seconds": 60,
+      "fhir_r4_ingestion_enabled": true,
+      "health_connect_sync_enabled": true,
+      "appointments_booking_enabled": true,
+      "marketplace_catalog_enabled": true,
+      "marketplace_checkout_enabled": true,
+      "international_marketplace_enabled": false,
+      "courier_delivery_tracking_enabled": true,
+      "delivery_location_throttle_seconds": 5,
+      "social_feed_enabled": true,
+      "reels_enabled": true,
+      "messaging_enabled": true,
+      "webrtc_teleconsultation_enabled": true,
+      "webrtc_auto_record_enabled": false,
+      "ai_studio_creative_tools_enabled": true,
+      "translation_service_enabled": true,
+      "seller_escrow_hold_days": 7
+    },
+    "governance_and_roles": {
+      "locked_account_categories": [
+        "INDIVIDUAL",
+        "DOCTOR",
+        "CLINIC",
+        "HOSPITAL",
+        "LABORATORY"
+      ],
+      "prohibited_account_categories": [
+        "PHARMACY",
+        "MEDICAL_STORE",
+        "MEDICINE_COMPANY",
+        "WHOLESALE",
+        "SUPPLIER",
+        "EQUIPMENT_MANUFACTURER",
+        "EQUIPMENT_SUPPLIER"
+      ],
+      "marketplace_roles": [
+        "CUSTOMER",
+        "SELLER"
+      ],
+      "seller_types": [
+        "INDIVIDUAL_SELLER",
+        "BUSINESS_SELLER"
+      ]
+    },
+    "rollout_tiers": {
+      "production_rollout_percentage": 0,
+      "allowed_countries": ["SA", "AE", "US", "GB", "EG", "IN"],
+      "allowed_account_types": ["INDIVIDUAL", "DOCTOR", "CLINIC", "HOSPITAL", "LABORATORY"]
+    },
+    "rate_limits": {
+      "typing_indicator_throttle_ms": 2000,
+      "max_simultaneous_device_sessions": 4,
+      "qr_token_max_age_seconds": 60,
+      "api_max_requests_per_minute": 120,
+      "session_idle_timeout_minutes": 15
+    }
+  }
+}

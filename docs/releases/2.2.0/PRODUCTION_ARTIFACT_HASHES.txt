@@ -1,0 +1,9 @@
+# HEALTHOGRAM 2.2.0 PRODUCTION ARTIFACT HASHES
+# Generated: 2026-09-21T14:56:00Z
+# Toolchain: OpenJDK 21.0.12, Gradle 9.3.1, AGP 9.1.1, Kotlin 2.2.10
+# Target SDK: 36, VersionCode: 20201, VersionName: 2.2.0
+
+7d1f2b1bd19c8a6e54421a917f2e78ace38ccc57328f6c03c67f1a9587200869  Healthogram-2.2.0-release.aab
+0a98945ae6f01d3c55cc3d92ee69e98f26c978c4c397a4ecd9e1bb62585b2117  Healthogram-2.2.0-release.apk
+ff8a6a64e742a7695bfb159db914b2907fee160d076da3d369aba50c2238ea77  Healthogram-2.2.0-source.zip
+ad6f0885653d6cd85f9a9d81b23e0e8765bff5fb14b1b602400ac8b4c8e83657  BUILD_MANIFEST.md

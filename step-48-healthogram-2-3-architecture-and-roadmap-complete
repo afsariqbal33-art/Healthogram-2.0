@@ -1,0 +1,20 @@
+CHECKPOINT: step-48-healthogram-2-3-architecture-and-roadmap-complete
+BRANCH: develop/healthogram-2-3
+COMMIT: docs: define healthogram 2.3 architecture and development roadmap
+VERSION_TARGET: 2.3.0
+ARCHITECTURE_STATUS: 2.3 ARCHITECTURE READY
+APPROVED_REQUIREMENTS: Health Passport granular scopes, FHIR R4 export, Health Connect, Appointments booking, Google Pay, Cold-chain delivery, Unified '+' creation tray
+ACCOUNT_MODEL_LOCKED: Individual, Doctor, Clinic, Hospital, Laboratory (5 only)
+MARKETPLACE_MODEL_LOCKED: Customer, Seller (Individual Seller, Business Seller)
+INTERNATIONAL_MARKETPLACE: DISABLED (false) - 100% domestic isolation enforced
+DATABASE_CHANGES: schema_version = 3 (Appointments, Schedules, FHIR Audit, Health Connect Sync, Cold-Chain telemetry)
+API_CHANGES: Structured /api/v2 versioned endpoints with backward compatibility for /api/v1
+SECURITY_CHANGES: Hardware Play Integrity, App Check, CMEK Storage, FIDO2 Owner MFA, in-memory FHIR signing
+MIGRATION_REQUIREMENTS: Zero-downtime additive schema migrations with asynchronous cursor backfill workers
+DEPENDENCIES_IDENTIFIED: Subsystem dependency graph mapped across core, identity, payments, and clinical modules
+RISK_REGISTER: 7 key technical/regulatory risks identified with explicit mitigations (All MITIGATED or IN_PROGRESS)
+FEATURE_FLAGS_MATRIX: Remote Config multi-state flags (OFF, BETA, ON, MAINTENANCE) with country/category filters
+DEVELOPMENT_PHASES: 10 sequential phases defined from Phase 1 (Core Architecture & Tech Debt) to Phase 10 (Stabilization)
+TESTING_REQUIREMENTS: Local JVM Robolectric, Roborazzi screenshot regression, FHIR R4 schema validator, double-entry ledger invariant tests
+RELEASE_STRATEGY: Develop -> QA -> Staging -> Release Candidate (v2.3.0) -> Google Play Staged Rollout -> Main
+DATE: 2026-09-22T06:56:00Z

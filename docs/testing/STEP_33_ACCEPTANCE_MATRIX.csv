@@ -1,0 +1,31 @@
+Requirement_ID,Feature_Domain,Validation_Condition,Expected_Result,Actual_Result,Status,SignOff_Role
+SEC-01,Health Passport,Cross-user read by non-consenting patient,HTTP 403 Forbidden / Access Denied,Access Denied,PASS,Security Architect
+SEC-02,Health Passport,Provider read without active consent grant,HTTP 403 Forbidden / Access Denied,Access Denied,PASS,Security Architect
+SEC-03,Health Passport,Provider read with expired consent grant,Access Denied immediately post TTL,Access Denied,PASS,Security Architect
+SEC-04,Health Passport,Provider read with patient revoked grant,Access Denied immediately upon revocation,Access Denied,PASS,Security Architect
+SEC-05,Health Passport,Cross-organization grant substitution,Strict rejection of mismatched organization ID,Access Denied,PASS,Security Architect
+QR-01,QR Cryptography,Ephemeral QR payload inspection,Contains 24-byte hex token; no medical data,Opaque token only,PASS,Interop Engineer
+QR-02,QR Cryptography,QR session token TTL enforcement,Expires after 15 minutes,Token Expired,PASS,Security Architect
+QR-03,QR Cryptography,Replay attack with consumed session ticket,Second presentation immediately rejected,Replay Blocked,PASS,Security Architect
+CON-01,Consent Lifecycle,Scoped category restriction (e.g. Lab vs Meds),Provider only retrieves permitted categories,Scoped to Labs,PASS,Privacy Engineer
+CON-02,Consent Lifecycle,Real-time consent revocation by patient,Subsequent requests fail immediately,Access Revoked,PASS,Privacy Engineer
+AUD-01,Audit Logging,Audit log content integrity inspection,Captures actor context; zero credential leakage,Audited cleanly,PASS,Privacy Engineer
+FHR-01,FHIR R4 Conformance,Validation of 16 core normative resources,Valid resources accepted; malformed rejected,16/16 Validated,PASS,FHIR Architect
+FHR-02,FHIR Import,Bundle import with provenance tracking,Records created with RecordSourceStatus.IMPORTED,Provenance Recorded,PASS,FHIR Architect
+FHR-03,FHIR Export,Time-bounded scoped patient bundle export,Presigned temporary bundle generated,Scoped Export OK,PASS,FHIR Architect
+FHR-04,FHIR Round-Trip,Healthogram -> FHIR -> Healthogram fidelity,Clinical equivalence verified; zero lossy metrics,EQUIVALENT,PASS,FHIR Architect
+FHC-01,Health Connect,Step & glucose telemetry ingestion,Deduplicated by external ID; sync stops on revoke,Sync & Dedup OK,PASS,Android Engineer
+FHC-02,Health Connect,Social & ad targeting airgap verification,Clinical telemetry excluded from search & ads,Airgap Enforced,PASS,Security Architect
+GW-01,Integration Gateway,Multi-provider adapter abstraction,Consistent contract across disparate EHR providers,Unified Interface,PASS,DevOps Engineer
+GW-02,Integration Gateway,Exponential backoff & retry on 500/429,Successful recovery without duplicate orders,Backoff Verified,PASS,DevOps Engineer
+APT-01,Appointments,Multi-provider booking & conflict prevention,Double booking rejected on overlapping time,Conflict Blocked,PASS,QA Lead
+APT-02,Appointments,Push notification privacy safety,Zero diagnosis or clinical reason in payload,Sanitized Notice,PASS,Privacy Engineer
+OCR-01,Paper Prescription,OCR candidate extraction review gate,Records remain provisional until clinician confirms,Confirmed by Doctor,PASS,QA Lead
+EMG-01,Emergency Card,Decoupled minimal emergency card QR,Opt-in payload exposes only blood group & contacts,Decoupled OK,PASS,Security Architect
+AI-01,Healthcare AI,Airgap from social AI & injection defense,Mandatory disclaimer; non-diagnostic; no auto-write,Airgap & Defense OK,PASS,AI Security Lead
+AUTH-01,Authentication,4-session concurrent device cap,5th simultaneous device rejected until slot freed,Device Limit Enforced,PASS,Security Architect
+ADM-01,Role Boundaries,Owner-only emergency kill switch,Non-owner admin denied operational kill switch,Role Enforced,PASS,Security Architect
+PRV-01,Privacy Matrix,Zero leakage across search and public feeds,Clinical diagnoses never surfaced in search,Zero Leakage,PASS,Privacy Engineer
+PRV-02,GDPR Portability,Right-to-erasure clinical scrubbing,Timeline erased; audit compliance preserved,Erasure Complete,PASS,Privacy Engineer
+PERF-01,Latency Budgets,In-memory consent check latency,< 30ms latency (Actual: < 5ms),Latency OK,PASS,Performance Engineer
+PERF-02,Latency Budgets,FHIR resource validation latency,< 60ms latency (Actual: < 12ms),Latency OK,PASS,Performance Engineer

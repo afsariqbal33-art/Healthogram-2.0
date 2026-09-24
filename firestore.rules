@@ -1,0 +1,1543 @@
+rules_version = '2';
+service cloud.firestore {
+  match /databases/{database}/documents {
+
+    // Helper functions
+    function isAuthenticated() {
+      return request.auth != null;
+    }
+
+    function isOwner(userId) {
+      return isAuthenticated() && request.auth.uid == userId;
+    }
+
+    function isOrgOwner(orgData) {
+      return isAuthenticated() && request.auth.uid == orgData.ownerUid;
+    }
+
+    // Baseline: Deny all by default
+    match /{document=**} {
+      allow read, write: if false;
+    }
+
+    // Users collection: users/{userId} (Step 03 legacy + auth sync)
+    match /users/{userId} {
+      allow read: if isAuthenticated();
+
+      allow create: if isOwner(userId)
+        && request.resource.data.uid == userId
+        // Enforce account category rules: PHARMACY is forbidden
+        && request.resource.data.accountType in ['individual', 'doctor', 'clinic', 'hospital', 'laboratory']
+        // Protected fields must initialize with default unprivileged states
+        && request.resource.data.isVerified == false
+        && request.resource.data.verificationStatus == 'not_started'
+        && request.resource.data.accountStatus in ['active', 'pending']
+        && !('adminRole' in request.resource.data)
+        && !('ownerRole' in request.resource.data);
+
+      allow update: if isOwner(userId)
+        && request.resource.data.isVerified == resource.data.isVerified
+        && request.resource.data.verificationStatus == resource.data.verificationStatus
+        && request.resource.data.accountType == resource.data.accountType
+        && request.resource.data.accountStatus == resource.data.accountStatus
+        && !('adminRole' in request.resource.data)
+        && !('ownerRole' in request.resource.data);
+
+      allow delete: if false;
+
+      match /devices/{deviceId} {
+        allow read, write: if isOwner(userId);
+      }
+    }
+
+    // -------------------------------------------------------------
+    // STEP 04: PROFILE & ROLE ARCHITECTURE COLLECTIONS
+    // -------------------------------------------------------------
+
+    // 1. Public Profiles: public_profiles/{userId}
+    // Separate public metadata from private account information.
+    match /public_profiles/{userId} {
+      allow read: if isAuthenticated();
+
+      allow create, update: if isOwner(userId)
+        && request.resource.data.uid == userId
+        && request.resource.data.accountType in ['individual', 'doctor', 'clinic', 'hospital', 'laboratory']
+        // Defense-in-depth: client cannot elevate verification status
+        && (!('isVerified' in resource.data) || request.resource.data.isVerified == resource.data.isVerified);
+
+      allow delete: if false;
+    }
+
+    // 2. Private Profiles: private_profiles/{userId}
+    // Strictly confidential: Only accessible by the account owner.
+    match /private_profiles/{userId} {
+      allow read, write: if isOwner(userId)
+        && request.resource.data.uid == userId;
+    }
+
+    // 3. Professional Profiles: professional_profiles/{userId}
+    // Doctor / specialist credentials, consultation fees, and services.
+    match /professional_profiles/{userId} {
+      allow read: if isAuthenticated();
+
+      allow create, update: if isOwner(userId)
+        && request.resource.data.uid == userId
+        // Client cannot self-grant verified medical badge
+        && (!('isVerified' in resource.data) || request.resource.data.isVerified == resource.data.isVerified);
+
+      allow delete: if false;
+    }
+
+    // 4. Organization Profiles: organizations/{orgId}
+    // Permitted types: Clinic, Hospital, Laboratory. PHARMACY STRICTLY PROHIBITED.
+    match /organizations/{orgId} {
+      allow read: if isAuthenticated();
+
+      allow create: if isAuthenticated()
+        && request.resource.data.ownerUid == request.auth.uid
+        && request.resource.data.organizationType in ['clinic', 'hospital', 'laboratory']
+        && request.resource.data.isVerified == false;
+
+      allow update: if isAuthenticated()
+        && resource.data.ownerUid == request.auth.uid
+        && request.resource.data.organizationType == resource.data.organizationType
+        && request.resource.data.isVerified == resource.data.isVerified;
+
+      allow delete: if false;
+
+      // Organization Members subcollection
+      match /members/{memberId} {
+        allow read: if isAuthenticated();
+        allow write: if isOrgOwner(get(/databases/$(database)/documents/organizations/$(orgId)).data);
+      }
+
+      // Organization Hardware Terminals subcollection (Max 4 by default, 8 on Enterprise)
+      match /devices/{deviceId} {
+        allow read, write: if isOrgOwner(get(/databases/$(database)/documents/organizations/$(orgId)).data);
+      }
+    }
+
+    // 5. Verification Submissions: verifications/{userId}
+    // Document metadata: private paths only, never public URLs.
+    match /verifications/{userId} {
+      allow read: if isOwner(userId);
+      allow create: if isOwner(userId)
+        && request.resource.data.status in ['draft', 'submitted'];
+      allow update: if isOwner(userId)
+        && resource.data.status in ['draft', 'rejected']
+        && request.resource.data.status in ['draft', 'submitted'];
+      allow delete: if false;
+    }
+
+    // Follow Graph: user_following/{userId}/targets/{targetUid}
+    match /user_following/{userId}/targets/{targetUid} {
+      allow read: if isAuthenticated();
+      allow write: if isOwner(userId);
+    }
+
+    // Usernames registry: usernames/{normalizedUsername}
+    match /usernames/{normalizedUsername} {
+      allow read: if isAuthenticated();
+      allow create: if isAuthenticated()
+        && request.resource.data.uid == request.auth.uid
+        && !exists(/databases/$(database)/documents/usernames/$(normalizedUsername));
+      allow update, delete: if false;
+    }
+
+    // Security Audit Logs: security_audit_logs/{eventId}
+    match /security_audit_logs/{eventId} {
+      allow read: if false;
+      allow create: if isAuthenticated()
+        && request.resource.data.uid == request.auth.uid;
+      allow update, delete: if false;
+    }
+
+    // -------------------------------------------------------------
+    // STEP 05: SOCIAL MEDIA & CREATOR PLATFORM ENGINE
+    // Strict isolation from Health Passport; Backend-enforced rules.
+    // -------------------------------------------------------------
+
+    // 1. Social Posts: posts/{postId}
+    match /posts/{postId} {
+      allow read: if isAuthenticated();
+
+      allow create: if isAuthenticated()
+        && request.resource.data.authorUid == request.auth.uid
+        && request.resource.data.category in ['all', 'entertainment', 'lifestyle', 'travel', 'education', 'technology', 'business', 'comedy', 'sports', 'music', 'creative', 'healthcare', 'personal', 'community']
+        // Prevent medical passport leakage into public posts
+        && !('healthRecordId' in request.resource.data)
+        && !('biometricId' in request.resource.data)
+        && !('prescriptionId' in request.resource.data);
+
+      allow update: if isAuthenticated()
+        && (resource.data.authorUid == request.auth.uid
+            || request.resource.data.diff(resource.data).affectedKeys().hasOnly(['likesCount', 'commentsCount', 'sharesCount', 'savesCount']));
+
+      allow delete: if isAuthenticated()
+        && resource.data.authorUid == request.auth.uid;
+
+      // Post Comments: posts/{postId}/comments/{commentId}
+      match /comments/{commentId} {
+        allow read: if isAuthenticated();
+        allow create: if isAuthenticated()
+          && request.resource.data.authorUid == request.auth.uid;
+        allow update: if isAuthenticated()
+          && (resource.data.authorUid == request.auth.uid
+              || request.resource.data.diff(resource.data).affectedKeys().hasOnly(['likesCount']));
+        allow delete: if isAuthenticated()
+          && (resource.data.authorUid == request.auth.uid
+              || get(/databases/$(database)/documents/posts/$(postId)).data.authorUid == request.auth.uid);
+      }
+    }
+
+    // 2. Short-Form Video Reels: reels/{reelId}
+    match /reels/{reelId} {
+      allow read: if isAuthenticated();
+      allow create: if isAuthenticated()
+        && request.resource.data.authorUid == request.auth.uid;
+      allow update: if isAuthenticated()
+        && (resource.data.authorUid == request.auth.uid
+            || request.resource.data.diff(resource.data).affectedKeys().hasOnly(['likesCount', 'commentsCount', 'sharesCount']));
+      allow delete: if isAuthenticated()
+        && resource.data.authorUid == request.auth.uid;
+    }
+
+    // 3. Ephemeral Stories (24h lifespan): stories/{storyId}
+    match /stories/{storyId} {
+      allow read: if isAuthenticated();
+      allow create: if isAuthenticated()
+        && request.resource.data.authorUid == request.auth.uid;
+      allow update: if isAuthenticated();
+      allow delete: if isAuthenticated()
+        && resource.data.authorUid == request.auth.uid;
+    }
+
+    // 4. Live Stream Broadcasts & Chat: live_streams/{streamId}
+    match /live_streams/{streamId} {
+      allow read: if isAuthenticated();
+      allow create: if isAuthenticated()
+        && request.resource.data.hostUid == request.auth.uid;
+      allow update: if isAuthenticated()
+        && (resource.data.hostUid == request.auth.uid
+            || request.resource.data.diff(resource.data).affectedKeys().hasOnly(['viewerCount', 'likesCount', 'isLive', 'endedAt']));
+      allow delete: if isAuthenticated()
+        && resource.data.hostUid == request.auth.uid;
+
+      match /chat/{messageId} {
+        allow read: if isAuthenticated();
+        allow create: if isAuthenticated()
+          && request.resource.data.senderUid == request.auth.uid;
+        allow update, delete: if false;
+      }
+    }
+
+    // 5. Trust, Safety & Moderation Reports: safety_reports/{reportId}
+    match /safety_reports/{reportId} {
+      allow read: if false; // Only moderation backend can read
+      allow create: if isAuthenticated()
+        && request.resource.data.reporterUid == request.auth.uid;
+      allow update, delete: if false;
+    }
+
+    // 6. User Safety Profiles (Blocked / Muted Users): user_safety_profiles/{userId}
+    match /user_safety_profiles/{userId} {
+      allow read, write: if isOwner(userId);
+    }
+
+    // -------------------------------------------------------------
+    // STEP 06: SECURE HEALTH PASSPORT & VAULT RULES
+    // -------------------------------------------------------------
+
+    function getUserData() {
+      return get(/databases/$(database)/documents/users/$(request.auth.uid)).data;
+    }
+
+    function isVerifiedHealthcareUser() {
+      return isAuthenticated() && getUserData().isVerified == true;
+    }
+
+    function isEligibleScanner() {
+      return isAuthenticated()
+        && isVerifiedHealthcareUser()
+        && getUserData().accountType in ['doctor', 'clinic', 'hospital', 'laboratory'];
+    }
+
+    // 1. Health Profiles: health_profiles/{patientUid}
+    match /health_profiles/{patientUid} {
+      allow read: if isOwner(patientUid) || isEligibleScanner();
+      allow create: if isOwner(patientUid)
+        && request.resource.data.uid == patientUid
+        && !('clinicalSummary' in request.resource.data);
+      allow update: if isOwner(patientUid)
+        && request.resource.data.uid == patientUid;
+      allow delete: if false; // Patient records deletion handled by cloud function
+    }
+
+    // 2. Health Conditions: health_conditions/{recordId}
+    match /health_conditions/{recordId} {
+      allow read: if isAuthenticated() && (
+        resource.data.patientUid == request.auth.uid || isEligibleScanner()
+      );
+      allow create: if isAuthenticated() && (
+        (request.resource.data.patientUid == request.auth.uid) ||
+        (isVerifiedHealthcareUser() && getUserData().accountType in ['doctor', 'clinic', 'hospital'])
+      );
+      allow update: if isAuthenticated() && (
+        resource.data.patientUid == request.auth.uid ||
+        resource.data.createdByUid == request.auth.uid
+      );
+      allow delete: if isAuthenticated() && resource.data.patientUid == request.auth.uid;
+    }
+
+    // 3. Health Allergies: health_allergies/{recordId}
+    match /health_allergies/{recordId} {
+      allow read: if isAuthenticated() && (
+        resource.data.patientUid == request.auth.uid || isEligibleScanner()
+      );
+      allow create: if isAuthenticated() && (
+        (request.resource.data.patientUid == request.auth.uid) ||
+        (isVerifiedHealthcareUser() && getUserData().accountType in ['doctor', 'clinic', 'hospital'])
+      );
+      allow update: if isAuthenticated() && (
+        resource.data.patientUid == request.auth.uid ||
+        resource.data.createdByUid == request.auth.uid
+      );
+      allow delete: if isAuthenticated() && resource.data.patientUid == request.auth.uid;
+    }
+
+    // 4. Health Medications: health_medications/{recordId}
+    match /health_medications/{recordId} {
+      allow read: if isAuthenticated() && (
+        resource.data.patientUid == request.auth.uid || isEligibleScanner()
+      );
+      allow create: if isAuthenticated() && (
+        (request.resource.data.patientUid == request.auth.uid) ||
+        (isVerifiedHealthcareUser() && getUserData().accountType in ['doctor', 'clinic', 'hospital'])
+      );
+      allow update: if isAuthenticated() && (
+        resource.data.patientUid == request.auth.uid ||
+        resource.data.prescribedByUid == request.auth.uid
+      );
+      allow delete: if isAuthenticated() && resource.data.patientUid == request.auth.uid;
+    }
+
+    // 5. Health Precautions: health_precautions/{recordId}
+    match /health_precautions/{recordId} {
+      allow read: if isAuthenticated() && (
+        resource.data.patientUid == request.auth.uid || isEligibleScanner()
+      );
+      allow create: if isAuthenticated() && (
+        (request.resource.data.patientUid == request.auth.uid) ||
+        (isVerifiedHealthcareUser() && getUserData().accountType in ['doctor', 'clinic', 'hospital'])
+      );
+      allow update, delete: if isAuthenticated() && (
+        resource.data.patientUid == request.auth.uid ||
+        resource.data.createdByUid == request.auth.uid
+      );
+    }
+
+    // 6. Health Visits: health_visits/{recordId}
+    match /health_visits/{recordId} {
+      allow read: if isAuthenticated() && (
+        resource.data.patientUid == request.auth.uid || isEligibleScanner()
+      );
+      allow create: if isAuthenticated() && (
+        (request.resource.data.patientUid == request.auth.uid) ||
+        (isVerifiedHealthcareUser() && getUserData().accountType in ['doctor', 'clinic', 'hospital'])
+      );
+      allow update, delete: if isAuthenticated() && (
+        resource.data.patientUid == request.auth.uid ||
+        resource.data.providerUid == request.auth.uid
+      );
+    }
+
+    // 7. Health Diagnoses: health_diagnoses/{recordId}
+    match /health_diagnoses/{recordId} {
+      allow read: if isAuthenticated() && (
+        resource.data.patientUid == request.auth.uid || isEligibleScanner()
+      );
+      allow create: if isAuthenticated() && (
+        isVerifiedHealthcareUser() && getUserData().accountType in ['doctor', 'clinic', 'hospital']
+      );
+      allow update, delete: if isAuthenticated() && (
+        resource.data.patientUid == request.auth.uid ||
+        resource.data.providerUid == request.auth.uid
+      );
+    }
+
+    // 8. Health Tests: health_tests/{recordId}
+    match /health_tests/{recordId} {
+      allow read: if isAuthenticated() && (
+        resource.data.patientUid == request.auth.uid || isEligibleScanner()
+      );
+      allow create: if isAuthenticated() && (
+        (request.resource.data.patientUid == request.auth.uid) ||
+        (isVerifiedHealthcareUser() && getUserData().accountType in ['doctor', 'clinic', 'hospital', 'laboratory'])
+      );
+      allow update, delete: if isAuthenticated() && (
+        resource.data.patientUid == request.auth.uid ||
+        resource.data.requestedByUid == request.auth.uid
+      );
+    }
+
+    // 9. Health Lab Reports: health_lab_reports/{recordId}
+    // Strict Laboratory rule: Only verified laboratory or patient can read/write
+    match /health_lab_reports/{recordId} {
+      allow read: if isAuthenticated() && (
+        resource.data.patientUid == request.auth.uid ||
+        resource.data.laboratoryUid == request.auth.uid ||
+        (isVerifiedHealthcareUser() && getUserData().accountType in ['doctor', 'clinic', 'hospital'])
+      );
+      allow create: if isAuthenticated() && (
+        isVerifiedHealthcareUser() && getUserData().accountType == 'laboratory'
+      );
+      allow update, delete: if isAuthenticated() && (
+        resource.data.laboratoryUid == request.auth.uid
+      );
+    }
+
+    // 10. Health Prescriptions: health_prescriptions/{recordId}
+    match /health_prescriptions/{recordId} {
+      allow read: if isAuthenticated() && (
+        resource.data.patientUid == request.auth.uid || isEligibleScanner()
+      );
+      allow create: if isAuthenticated() && (
+        isVerifiedHealthcareUser() && getUserData().accountType in ['doctor', 'clinic', 'hospital']
+      );
+      allow update, delete: if isAuthenticated() && (
+        resource.data.doctorUid == request.auth.uid
+      );
+    }
+
+    // 11. Health Documents: health_documents/{recordId}
+    match /health_documents/{recordId} {
+      allow read: if isAuthenticated() && (
+        resource.data.patientUid == request.auth.uid || isEligibleScanner()
+      );
+      allow create: if isAuthenticated() && (
+        request.resource.data.patientUid == request.auth.uid ||
+        isVerifiedHealthcareUser()
+      );
+      allow update, delete: if isAuthenticated() && (
+        resource.data.patientUid == request.auth.uid ||
+        resource.data.uploadedByUid == request.auth.uid
+      );
+    }
+
+    // 12. Health Bills: health_bills/{recordId}
+    // Isolated medical expense records: Never accessible by marketplace or third parties
+    match /health_bills/{recordId} {
+      allow read: if isAuthenticated() && (
+        resource.data.patientUid == request.auth.uid ||
+        resource.data.providerUid == request.auth.uid
+      );
+      allow create: if isAuthenticated() && (
+        (request.resource.data.patientUid == request.auth.uid) ||
+        (isVerifiedHealthcareUser() && getUserData().accountType in ['doctor', 'clinic', 'hospital'])
+      );
+      allow update, delete: if isAuthenticated() && (
+        resource.data.patientUid == request.auth.uid ||
+        resource.data.providerUid == request.auth.uid
+      );
+    }
+
+    // 13. Health Notes: health_notes/{recordId}
+    // Private patient notes: ONLY the patient can read or write
+    match /health_notes/{recordId} {
+      allow read, write: if isAuthenticated() && (
+        (resource == null && request.resource.data.patientUid == request.auth.uid) ||
+        (resource != null && resource.data.patientUid == request.auth.uid)
+      );
+    }
+
+    // 14. Health Access Requests: health_access_requests/{requestId}
+    match /health_access_requests/{requestId} {
+      allow read: if isAuthenticated() && (
+        resource.data.patientUid == request.auth.uid ||
+        resource.data.requesterUid == request.auth.uid
+      );
+      allow create: if isAuthenticated()
+        && isEligibleScanner()
+        && request.resource.data.requesterUid == request.auth.uid;
+      allow update: if isAuthenticated() && (
+        resource.data.patientUid == request.auth.uid ||
+        resource.data.requesterUid == request.auth.uid
+      );
+      allow delete: if false;
+    }
+
+    // 15. Health Access Grants: health_access_grants/{grantId}
+    match /health_access_grants/{grantId} {
+      allow read: if isAuthenticated() && (
+        resource.data.patientUid == request.auth.uid ||
+        resource.data.requesterUid == request.auth.uid
+      );
+      allow create, update: if isAuthenticated() && (
+        (resource == null && request.resource.data.patientUid == request.auth.uid) ||
+        (resource != null && resource.data.patientUid == request.auth.uid)
+      );
+      allow delete: if false;
+    }
+
+    // 16. Health Access Logs: health_access_logs/{logId}
+    // IMMUTABLE AUDIT TRAIL: Read-only for patient. Client write is STRICTLY FORBIDDEN.
+    match /health_access_logs/{logId} {
+      allow read: if isAuthenticated() && resource.data.patientUid == request.auth.uid;
+      allow create, update, delete: if false; // Must only be created by backend / Cloud Functions
+    }
+
+    // 17. Health QR Sessions: health_qr_sessions/{sessionId}
+    match /health_qr_sessions/{sessionId} {
+      allow read: if isAuthenticated() && (
+        resource.data.patientUid == request.auth.uid ||
+        resource.data.requesterUid == request.auth.uid ||
+        isEligibleScanner()
+      );
+      allow create: if isAuthenticated() && request.resource.data.patientUid == request.auth.uid;
+      allow update: if isAuthenticated() && (
+        resource.data.patientUid == request.auth.uid ||
+        isEligibleScanner()
+      );
+      allow delete: if false;
+    }
+
+    // -------------------------------------------------------------
+    // STEP 07: HEALTHCARE VERIFICATION & BADGE SYSTEM COLLECTIONS
+    // -------------------------------------------------------------
+
+    function isVerificationReviewStaff() {
+      return isAuthenticated() && (
+        request.auth.token.verificationRole in ['verification_reviewer', 'verification_manager', 'admin', 'owner']
+      );
+    }
+
+    // 18. Country Verification Configs: country_verification_configs/{countryCode}
+    match /country_verification_configs/{countryCode} {
+      allow read: if isAuthenticated();
+      allow write: if false; // System / Manager only
+    }
+
+    // 19. Country Verification Requirements: country_verification_requirements/{reqId}
+    match /country_verification_requirements/{reqId} {
+      allow read: if isAuthenticated();
+      allow write: if false; // System / Manager only
+    }
+
+    // 20. Verification Profiles: verification_profiles/{userId}
+    // High-level public verification status. Never contains sensitive document numbers.
+    match /verification_profiles/{userId} {
+      allow read: if isAuthenticated();
+      allow create: if isOwner(userId)
+        && request.resource.data.uid == userId
+        && request.resource.data.accountType in ['individual', 'doctor', 'clinic', 'hospital', 'laboratory']
+        && request.resource.data.verificationStatus in ['not_started', 'draft']
+        && request.resource.data.verifiedBadge == false;
+      allow update: if isOwner(userId)
+        // User cannot self-elevate verification or badge
+        && request.resource.data.verificationStatus == resource.data.verificationStatus
+        && request.resource.data.verifiedBadge == resource.data.verifiedBadge
+        && request.resource.data.verifiedAt == resource.data.verifiedAt
+        && request.resource.data.verificationExpiresAt == resource.data.verificationExpiresAt;
+      allow delete: if false;
+    }
+
+    // 21. Verification Applications: verification_applications/{appId}
+    match /verification_applications/{appId} {
+      allow read: if isAuthenticated() && (
+        resource.data.uid == request.auth.uid || isVerificationReviewStaff()
+      );
+      allow create: if isAuthenticated()
+        && request.resource.data.uid == request.auth.uid
+        && request.resource.data.accountType in ['individual', 'doctor', 'clinic', 'hospital', 'laboratory']
+        && request.resource.data.status in ['draft', 'submitted'];
+      allow update: if isAuthenticated() && (
+        (resource.data.uid == request.auth.uid
+          && resource.data.status in ['draft', 'additional_information_required']
+          && request.resource.data.status in ['draft', 'submitted']
+          && request.resource.data.uid == resource.data.uid)
+        || isVerificationReviewStaff()
+      );
+      allow delete: if false;
+    }
+
+    // 22. Verification Documents: verification_documents/{docId}
+    match /verification_documents/{docId} {
+      allow read: if isAuthenticated() && (
+        resource.data.uid == request.auth.uid || isVerificationReviewStaff()
+      );
+      allow create: if isAuthenticated()
+        && request.resource.data.uid == request.auth.uid
+        && request.resource.data.storagePath.matches('^verification_private/.*');
+      allow update, delete: if isAuthenticated() && resource.data.uid == request.auth.uid;
+    }
+
+    // 23. Verification Audit Logs: verification_audit_logs/{logId}
+    // IMMUTABLE AUDIT TRAIL: Read-only for authorized review staff. Clients cannot write.
+    match /verification_audit_logs/{logId} {
+      allow read: if isVerificationReviewStaff();
+      allow write: if false;
+    }
+
+    // 24. Verification Queue: verification_queue/{queueId}
+    match /verification_queue/{queueId} {
+      allow read, write: if isVerificationReviewStaff();
+    }
+
+    // -------------------------------------------------------------
+    // STEP 08: MARKETPLACE CUSTOMER SYSTEM COLLECTIONS
+    // Strict isolation from Health Passport; Authoritative pricing.
+    // -------------------------------------------------------------
+
+    // 25. Marketplace Countries: marketplace_countries/{countryCode}
+    match /marketplace_countries/{countryCode} {
+      allow read: if isAuthenticated();
+      allow write: if false; // System / Admin only
+    }
+
+    // 26. Marketplace Categories: marketplace_categories/{categoryId}
+    match /marketplace_categories/{categoryId} {
+      allow read: if isAuthenticated();
+      allow write: if false;
+    }
+
+    // 27. Marketplace Products: marketplace_products/{productId}
+    // Customers can only read active products. Customers cannot modify price/stock.
+    match /marketplace_products/{productId} {
+      allow read: if isAuthenticated() && (
+        resource.data.status == 'active' ||
+        resource.data.seller_uid == request.auth.uid
+      );
+      // Customers cannot write directly to products
+      allow create, update, delete: if isAuthenticated()
+        && request.auth.uid == resource.data.seller_uid;
+    }
+
+    // 28. Marketplace Carts: marketplace_carts/{cartId}
+    match /marketplace_carts/{cartId} {
+      allow read: if isAuthenticated() && resource.data.customer_uid == request.auth.uid;
+      allow create: if isAuthenticated() && request.resource.data.customer_uid == request.auth.uid;
+      allow update: if isAuthenticated() && resource.data.customer_uid == request.auth.uid;
+      allow delete: if isAuthenticated() && resource.data.customer_uid == request.auth.uid;
+
+      match /items/{itemId} {
+        allow read, write: if isAuthenticated()
+          && get(/databases/$(database)/documents/marketplace_carts/$(cartId)).data.customer_uid == request.auth.uid;
+      }
+    }
+
+    // 29. Marketplace Cart Items: marketplace_cart_items/{itemId}
+    match /marketplace_cart_items/{itemId} {
+      allow read, write: if isAuthenticated() && (
+        resource.data.customer_uid == request.auth.uid ||
+        request.resource.data.customer_uid == request.auth.uid
+      );
+    }
+
+    // 30. Marketplace Addresses: marketplace_addresses/{addressId}
+    // Customer private delivery addresses. Never accessible to unauthorized users.
+    match /marketplace_addresses/{addressId} {
+      allow read, write: if isAuthenticated() && (
+        resource.data.customer_uid == request.auth.uid ||
+        request.resource.data.customer_uid == request.auth.uid
+      );
+    }
+
+    // 31. Marketplace Orders: marketplace_orders/{orderId}
+    // Read: Customer or participating Seller. Write: strictly governed.
+    match /marketplace_orders/{orderId} {
+      allow read: if isAuthenticated() && (
+        resource.data.customer_uid == request.auth.uid ||
+        resource.data.seller_uid == request.auth.uid
+      );
+      // Authoritative order creation: Customer can initiate order draft with their UID
+      allow create: if isAuthenticated()
+        && request.resource.data.customer_uid == request.auth.uid
+        && request.resource.data.order_status in ['pending_payment', 'draft'];
+      // Customer cannot alter grand total or payment status directly
+      allow update: if isAuthenticated() && resource.data.customer_uid == request.auth.uid
+        && request.resource.data.grand_total == resource.data.grand_total
+        && request.resource.data.payment_status == resource.data.payment_status
+        && request.resource.data.seller_uid == resource.data.seller_uid;
+      allow delete: if false;
+
+      match /items/{itemId} {
+        allow read: if isAuthenticated() && (
+          get(/databases/$(database)/documents/marketplace_orders/$(orderId)).data.customer_uid == request.auth.uid ||
+          get(/databases/$(database)/documents/marketplace_orders/$(orderId)).data.seller_uid == request.auth.uid
+        );
+        allow write: if false; // Server authoritative
+      }
+    }
+
+    // 32. Marketplace Payments: marketplace_payments/{paymentId}
+    // Client write is blocked: Payment status is exclusively written by payment webhook / Cloud Function
+    match /marketplace_payments/{paymentId} {
+      allow read: if isAuthenticated() && resource.data.customer_uid == request.auth.uid;
+      allow write: if false;
+    }
+
+    // 33. Marketplace Coupons: marketplace_coupons/{couponId}
+    match /marketplace_coupons/{couponId} {
+      allow read: if isAuthenticated();
+      allow write: if false;
+    }
+
+    // 34. Marketplace Deals: marketplace_deals/{dealId}
+    match /marketplace_deals/{dealId} {
+      allow read: if isAuthenticated();
+      allow write: if false;
+    }
+
+    // 35. Marketplace Flash Sales: marketplace_flash_sales/{flashSaleId}
+    match /marketplace_flash_sales/{flashSaleId} {
+      allow read: if isAuthenticated();
+      allow write: if false;
+    }
+
+    // 36. Marketplace Returns: marketplace_returns/{returnId}
+    match /marketplace_returns/{returnId} {
+      allow read: if isAuthenticated() && (
+        resource.data.customer_uid == request.auth.uid ||
+        resource.data.seller_uid == request.auth.uid
+      );
+      allow create: if isAuthenticated()
+        && request.resource.data.customer_uid == request.auth.uid
+        && request.resource.data.status == 'requested';
+      allow update: if isAuthenticated() && (
+        (resource.data.customer_uid == request.auth.uid && request.resource.data.status == resource.data.status) ||
+        resource.data.seller_uid == request.auth.uid
+      );
+      allow delete: if false;
+    }
+
+    // 37. Marketplace Refunds: marketplace_refunds/{refundId}
+    match /marketplace_refunds/{refundId} {
+      allow read: if isAuthenticated() && resource.data.customer_uid == request.auth.uid;
+      allow write: if false; // Authoritative gateway only
+    }
+
+    // 38. Marketplace Reviews: marketplace_reviews/{reviewId}
+    match /marketplace_reviews/{reviewId} {
+      allow read: if isAuthenticated();
+      allow create: if isAuthenticated()
+        && request.resource.data.customer_uid == request.auth.uid
+        && request.resource.data.rating >= 1 && request.resource.data.rating <= 5;
+      allow update: if isAuthenticated()
+        && resource.data.customer_uid == request.auth.uid
+        && request.resource.data.customer_uid == resource.data.customer_uid;
+      allow delete: if isAuthenticated() && resource.data.customer_uid == request.auth.uid;
+    }
+
+    // 39. Marketplace Support Tickets: marketplace_support_tickets/{ticketId}
+    match /marketplace_support_tickets/{ticketId} {
+      allow read: if isAuthenticated() && resource.data.customer_uid == request.auth.uid;
+      allow create: if isAuthenticated() && request.resource.data.customer_uid == request.auth.uid;
+      allow update: if isAuthenticated() && resource.data.customer_uid == request.auth.uid;
+      allow delete: if false;
+    }
+
+    // -------------------------------------------------------------
+    // STEP 09: MARKETPLACE SELLER CENTER COLLECTIONS
+    // Strict Cross-Seller Isolation, Immutable Ledgers, Server Balances,
+    // Zero Health Passport Access.
+    // -------------------------------------------------------------
+
+    // 40. Seller Profiles: marketplace_seller_profiles/{sellerUid}
+    match /marketplace_seller_profiles/{sellerUid} {
+      allow read: if isAuthenticated();
+      allow create: if isOwner(sellerUid)
+        && request.resource.data.seller_uid == request.auth.uid
+        && request.resource.data.seller_type in ['individual_seller', 'business_seller']
+        && request.resource.data.verification_status in ['not_started', 'draft']
+        && request.resource.data.seller_status == 'pending';
+      allow update: if isOwner(sellerUid)
+        && request.resource.data.seller_uid == resource.data.seller_uid
+        && request.resource.data.seller_type == resource.data.seller_type
+        && request.resource.data.verification_status == resource.data.verification_status
+        && request.resource.data.seller_status == resource.data.seller_status;
+      allow delete: if false;
+    }
+
+    // 41. Seller Verification: marketplace_seller_verification/{sellerUid}
+    match /marketplace_seller_verification/{sellerUid} {
+      allow read: if isOwner(sellerUid) || isVerificationReviewStaff();
+      allow create: if isOwner(sellerUid)
+        && request.resource.data.seller_uid == request.auth.uid
+        && request.resource.data.status in ['not_started', 'draft', 'submitted'];
+      allow update: if (isOwner(sellerUid)
+        && resource.data.seller_uid == request.auth.uid
+        && resource.data.status in ['draft', 'additional_information_required']
+        && request.resource.data.status == 'submitted')
+        || isVerificationReviewStaff();
+      allow delete: if false;
+    }
+
+    // 42. Seller Documents: marketplace_seller_documents/{documentId}
+    match /marketplace_seller_documents/{documentId} {
+      allow read: if isAuthenticated() && (
+        resource.data.seller_uid == request.auth.uid || isVerificationReviewStaff()
+      );
+      allow create: if isAuthenticated()
+        && request.resource.data.seller_uid == request.auth.uid
+        && request.resource.data.storage_path.matches('^marketplace_private/.*');
+      allow update, delete: if isAuthenticated() && resource.data.seller_uid == request.auth.uid;
+    }
+
+    // 43. Seller Country Requirements: marketplace_seller_country_requirements/{requirementId}
+    match /marketplace_seller_country_requirements/{requirementId} {
+      allow read: if isAuthenticated();
+      allow write: if false;
+    }
+
+    // 44. Seller Applications: marketplace_seller_applications/{applicationId}
+    match /marketplace_seller_applications/{applicationId} {
+      allow read: if isAuthenticated() && (
+        resource.data.seller_uid == request.auth.uid || isVerificationReviewStaff()
+      );
+      allow create: if isAuthenticated()
+        && request.resource.data.seller_uid == request.auth.uid
+        && request.resource.data.status in ['draft', 'submitted'];
+      allow update: if isAuthenticated() && (
+        (resource.data.seller_uid == request.auth.uid
+          && resource.data.status in ['draft', 'additional_information_required']
+          && request.resource.data.status == 'submitted')
+        || isVerificationReviewStaff()
+      );
+      allow delete: if false;
+    }
+
+    // 45. Product Reviews / Moderation: marketplace_product_reviews/{reviewId}
+    match /marketplace_product_reviews/{reviewId} {
+      allow read: if isAuthenticated() && (
+        resource.data.seller_uid == request.auth.uid || isVerificationReviewStaff()
+      );
+      allow write: if isVerificationReviewStaff();
+    }
+
+    // 46. Product Compliance: marketplace_product_compliance/{productId}
+    match /marketplace_product_compliance/{productId} {
+      allow read: if isAuthenticated() && (
+        resource.data.seller_uid == request.auth.uid || isVerificationReviewStaff()
+      );
+      allow write: if isVerificationReviewStaff();
+    }
+
+    // 47. Product Inventory: marketplace_inventory/{inventoryId}
+    match /marketplace_inventory/{inventoryId} {
+      allow read: if isAuthenticated() && (
+        resource.data.seller_uid == request.auth.uid || resource.data.inventory_status == 'in_stock'
+      );
+      // Inventory updates must occur through atomic Cloud Functions / Transactions
+      allow write: if false;
+    }
+
+    // 48. Inventory Movements: marketplace_inventory_movements/{movementId}
+    match /marketplace_inventory_movements/{movementId} {
+      allow read: if isAuthenticated() && resource.data.seller_uid == request.auth.uid;
+      allow write: if false; // Append-oriented server writes only
+    }
+
+    // 49. Product Prices: marketplace_product_prices/{priceId}
+    match /marketplace_product_prices/{priceId} {
+      allow read: if isAuthenticated();
+      allow write: if false;
+    }
+
+    // 50. Price History: marketplace_price_history/{historyId}
+    match /marketplace_price_history/{historyId} {
+      allow read: if isAuthenticated() && resource.data.seller_uid == request.auth.uid;
+      allow write: if false;
+    }
+
+    // 51. Seller Offers & Promotions: marketplace_seller_offers/{offerId}
+    match /marketplace_seller_offers/{offerId} {
+      allow read: if isAuthenticated();
+      allow create: if isAuthenticated() && request.resource.data.seller_uid == request.auth.uid;
+      allow update, delete: if isAuthenticated() && resource.data.seller_uid == request.auth.uid;
+    }
+
+    // 52. Seller Financial Ledger: marketplace_seller_ledger/{ledgerId}
+    // IMMUTABLE FINANCIAL LEDGER: Normal seller clients cannot modify entries.
+    match /marketplace_seller_ledger/{ledgerId} {
+      allow read: if isAuthenticated() && resource.data.seller_uid == request.auth.uid;
+      allow create, update, delete: if false; // Server authoritative only
+    }
+
+    // 53. Seller Balances: marketplace_seller_balances/{sellerUid}
+    // Client cannot directly write balance values.
+    match /marketplace_seller_balances/{sellerUid} {
+      allow read: if isOwner(sellerUid);
+      allow create, update, delete: if false; // Server authoritative only
+    }
+
+    // 54. Seller Payout Accounts: marketplace_seller_payout_accounts/{payoutAccountId}
+    // Masked bank / payment destination. No raw credentials in Firestore.
+    match /marketplace_seller_payout_accounts/{payoutAccountId} {
+      allow read: if isAuthenticated() && resource.data.seller_uid == request.auth.uid;
+      allow create: if isAuthenticated()
+        && request.resource.data.seller_uid == request.auth.uid
+        && request.resource.data.verification_status == 'pending_verification';
+      allow update: if isAuthenticated()
+        && resource.data.seller_uid == request.auth.uid
+        && request.resource.data.verification_status == resource.data.verification_status;
+      allow delete: if isAuthenticated() && resource.data.seller_uid == request.auth.uid;
+    }
+
+    // 55. Seller Payout Requests: marketplace_seller_payout_requests/{requestId}
+    match /marketplace_seller_payout_requests/{requestId} {
+      allow read: if isAuthenticated() && resource.data.seller_uid == request.auth.uid;
+      allow create: if isAuthenticated()
+        && request.resource.data.seller_uid == request.auth.uid
+        && request.resource.data.status == 'requested';
+      allow update, delete: if false; // Status changes handled exclusively by server
+    }
+
+    // 56. Commission Rules: marketplace_commission_rules/{ruleId}
+    match /marketplace_commission_rules/{ruleId} {
+      allow read: if isAuthenticated();
+      allow write: if false; // Admin / Owner configured only
+    }
+
+    // 57. Seller Support Tickets: seller_support_tickets/{ticketId}
+    match /seller_support_tickets/{ticketId} {
+      allow read: if isAuthenticated() && resource.data.seller_uid == request.auth.uid;
+      allow create: if isAuthenticated() && request.resource.data.seller_uid == request.auth.uid;
+      allow update: if isAuthenticated() && resource.data.seller_uid == request.auth.uid;
+      allow delete: if false;
+    }
+
+    // 58. Seller Audit Logs: marketplace_seller_audit_logs/{logId}
+    match /marketplace_seller_audit_logs/{logId} {
+      allow read: if isVerificationReviewStaff();
+      allow write: if false; // Append-only by server
+    }
+
+    // -------------------------------------------------------------
+    // STEP 10: HEALTHOGRAM AI STUDIO SECURITY RULES
+    // -------------------------------------------------------------
+
+    // 59. AI Jobs: ai_jobs/{jobId}
+    // Users can only view and create their own jobs.
+    // Client update restricted to cancellation. Server orchestrates completion.
+    match /ai_jobs/{jobId} {
+      allow read: if isAuthenticated() && resource.data.uid == request.auth.uid;
+      allow create: if isAuthenticated()
+        && request.resource.data.uid == request.auth.uid
+        && request.resource.data.status == 'queued'
+        // Block injection of protected health passport collections
+        && !('health_passports' in request.resource.data.input_reference)
+        && !('health_conditions' in request.resource.data.input_reference)
+        && !('health_allergies' in request.resource.data.input_reference)
+        && !('health_medications' in request.resource.data.input_reference)
+        && !('health_visits' in request.resource.data.input_reference)
+        && !('health_lab_reports' in request.resource.data.input_reference)
+        && !('health_prescriptions' in request.resource.data.input_reference);
+      allow update: if isAuthenticated()
+        && resource.data.uid == request.auth.uid
+        && request.resource.data.uid == resource.data.uid
+        && request.resource.data.status == 'cancelled';
+      allow delete: if false;
+    }
+
+    // 60. AI Generated Assets: ai_generated_assets/{assetId}
+    // Server-managed assets catalog. User can read their own assets.
+    match /ai_generated_assets/{assetId} {
+      allow read: if isAuthenticated() && resource.data.uid == request.auth.uid;
+      allow write: if false; // Server authoritative only
+    }
+
+    // 61. AI Usage Ledger: ai_usage/{usageId}
+    // Immutable usage logs. Normal users can read their own usage history.
+    match /ai_usage/{usageId} {
+      allow read: if isAuthenticated() && resource.data.uid == request.auth.uid;
+      allow write: if false; // Server authoritative only
+    }
+
+    // 62. AI Usage Summary: ai_usage_summary/{uid}
+    // Client CANNOT write or alter their quota limits or used units!
+    match /ai_usage_summary/{uid} {
+      allow read: if isOwner(uid);
+      allow write: if false; // Server authoritative only
+    }
+
+    // 63. AI Generation History: ai_history/{historyId}
+    match /ai_history/{historyId} {
+      allow read: if isAuthenticated() && resource.data.uid == request.auth.uid;
+      allow create: if isAuthenticated() && request.resource.data.uid == request.auth.uid;
+      allow update: if isAuthenticated() && resource.data.uid == request.auth.uid;
+      allow delete: if isAuthenticated() && resource.data.uid == request.auth.uid;
+    }
+
+    // 64. AI User Settings: ai_settings/{uid}
+    match /ai_settings/{uid} {
+      allow read, write: if isOwner(uid);
+    }
+
+    // 65. AI Audit Logs: ai_audit_logs/{logId}
+    // Strictly server-written audit logs for AI activities and moderation blocks.
+    match /ai_audit_logs/{logId} {
+      allow read: if isVerificationReviewStaff();
+      allow write: if false; // Append-only by Cloud Functions
+    }
+
+    // 66. Admin AI Configuration: admin_ai_config/{docId}
+    match /admin_ai_config/{docId} {
+      allow read: if isAuthenticated();
+      allow write: if false; // Owner/Admin configured only
+    }
+
+    // =========================================================================
+    // STEP 11: MESSAGING + AUDIO CALLING + VIDEO CALLING RULES
+    // =========================================================================
+
+    // 67. Communication Settings: communication_settings/{uid}
+    match /communication_settings/{uid} {
+      allow read: if isAuthenticated();
+      allow write: if isOwner(uid);
+    }
+
+    // 68. Conversations: conversations/{conversationId}
+    match /conversations/{conversationId} {
+      allow read: if isAuthenticated() && request.auth.uid in resource.data.participant_ids;
+      allow create: if isAuthenticated() && request.auth.uid in request.resource.data.participant_ids;
+      allow update: if isAuthenticated()
+        && request.auth.uid in resource.data.participant_ids
+        && request.resource.data.participant_ids == resource.data.participant_ids;
+      allow delete: if false;
+    }
+
+    // 69. Conversation Participants: conversation_participants/{participantId}
+    match /conversation_participants/{participantId} {
+      allow read: if isAuthenticated();
+      allow write: if isAuthenticated() && (resource == null || resource.data.uid == request.auth.uid);
+    }
+
+    // 70. Messages: messages/{messageId}
+    match /messages/{messageId} {
+      allow read: if isAuthenticated();
+      allow create: if isAuthenticated()
+        && request.resource.data.sender_uid == request.auth.uid;
+      allow update: if isAuthenticated()
+        && (
+          // Sender editing their message
+          (resource.data.sender_uid == request.auth.uid && request.resource.data.sender_uid == resource.data.sender_uid)
+          // Or recipient updating delivery / read status
+          || (request.resource.data.diff(resource.data).affectedKeys().hasOnly(['delivery_status', 'updated_at']))
+        );
+      allow delete: if isAuthenticated() && resource.data.sender_uid == request.auth.uid;
+    }
+
+    // 71. Message Requests: message_requests/{requestId}
+    match /message_requests/{requestId} {
+      allow read: if isAuthenticated() && (resource.data.sender_uid == request.auth.uid || resource.data.recipient_uid == request.auth.uid);
+      allow create: if isAuthenticated() && request.resource.data.sender_uid == request.auth.uid;
+      allow update: if isAuthenticated() && resource.data.recipient_uid == request.auth.uid;
+      allow delete: if isAuthenticated() && (resource.data.sender_uid == request.auth.uid || resource.data.recipient_uid == request.auth.uid);
+    }
+
+    // 72. User Blocks: user_blocks/{blockId}
+    match /user_blocks/{blockId} {
+      allow read: if isAuthenticated() && (resource.data.blocker_uid == request.auth.uid || resource.data.blocked_uid == request.auth.uid);
+      allow create: if isAuthenticated() && request.resource.data.blocker_uid == request.auth.uid;
+      allow delete: if isAuthenticated() && resource.data.blocker_uid == request.auth.uid;
+    }
+
+    // 73. Communication Reports: communication_reports/{reportId}
+    match /communication_reports/{reportId} {
+      allow read: if isVerificationReviewStaff() || (isAuthenticated() && resource.data.reporter_uid == request.auth.uid);
+      allow create: if isAuthenticated() && request.resource.data.reporter_uid == request.auth.uid;
+      allow update: if isVerificationReviewStaff();
+      allow delete: if false;
+    }
+
+    // 74. Message Reactions: message_reactions/{reactionId}
+    match /message_reactions/{reactionId} {
+      allow read: if isAuthenticated();
+      allow create: if isAuthenticated() && request.resource.data.uid == request.auth.uid;
+      allow delete: if isAuthenticated() && resource.data.uid == request.auth.uid;
+    }
+
+    // 75. User Presence: user_presence/{uid}
+    match /user_presence/{uid} {
+      allow read: if isAuthenticated();
+      allow write: if isOwner(uid);
+    }
+
+    // 76. User Devices: user_devices/{deviceId}
+    match /user_devices/{deviceId} {
+      allow read: if isAuthenticated() && resource.data.uid == request.auth.uid;
+      allow write: if isAuthenticated() && (resource == null || resource.data.uid == request.auth.uid);
+    }
+
+    // 77. Notification Settings: notification_settings/{uid}
+    match /notification_settings/{uid} {
+      allow read, write: if isOwner(uid);
+    }
+
+    // 78. Call Sessions: call_sessions/{callId}
+    match /call_sessions/{callId} {
+      allow read: if isAuthenticated() && (resource.data.caller_uid == request.auth.uid || resource.data.receiver_uid == request.auth.uid);
+      allow create: if isAuthenticated() && request.resource.data.caller_uid == request.auth.uid;
+      allow update: if isAuthenticated() && (resource.data.caller_uid == request.auth.uid || resource.data.receiver_uid == request.auth.uid);
+      allow delete: if false;
+    }
+
+    // 79. Call History: call_history/{historyId}
+    match /call_history/{historyId} {
+      allow read: if isAuthenticated() && resource.data.uid == request.auth.uid;
+      allow create: if isAuthenticated() && request.resource.data.uid == request.auth.uid;
+      allow delete: if isAuthenticated() && resource.data.uid == request.auth.uid;
+    }
+
+    // 80. Communication Retention Config: communication_retention_config/{docId}
+    match /communication_retention_config/{docId} {
+      allow read: if isAuthenticated();
+      allow write: if false;
+    }
+
+    // 81. Communication Audit Logs: communication_audit_logs/{logId}
+    match /communication_audit_logs/{logId} {
+      allow read: if isVerificationReviewStaff();
+      allow write: if false;
+    }
+
+    // -------------------------------------------------------------
+    // STEP 12: REAL-TIME MULTILINGUAL TRANSLATION COLLECTIONS
+    // -------------------------------------------------------------
+
+    // 82. Languages: languages/{languageCode}
+    match /languages/{languageCode} {
+      allow read: if isAuthenticated();
+      allow write: if false; // Server authoritative
+    }
+
+    // 83. Translation Settings: translation_settings/{uid}
+    match /translation_settings/{uid} {
+      allow read, write: if isOwner(uid);
+    }
+
+    // 84. Message Translations: message_translations/{translationId}
+    match /message_translations/{translationId} {
+      allow read: if isAuthenticated() && (resource.data.requester_uid == request.auth.uid);
+      allow create: if isAuthenticated() && request.resource.data.requester_uid == request.auth.uid;
+      allow update, delete: if false;
+    }
+
+    // 85. Translation Jobs: translation_jobs/{jobId}
+    match /translation_jobs/{jobId} {
+      allow read: if isAuthenticated() && resource.data.uid == request.auth.uid;
+      allow create: if isAuthenticated() && request.resource.data.uid == request.auth.uid;
+      allow update, delete: if false; // Status and results updated server-side
+    }
+
+    // 86. Voice Transcripts: voice_transcripts/{transcriptId}
+    match /voice_transcripts/{transcriptId} {
+      allow read: if isAuthenticated() && resource.data.uid == request.auth.uid;
+      allow create: if isAuthenticated() && request.resource.data.uid == request.auth.uid;
+      allow update, delete: if false;
+    }
+
+    // 87. Translation Call Sessions: translation_call_sessions/{sessionId}
+    match /translation_call_sessions/{sessionId} {
+      allow read: if isAuthenticated() && (request.auth.uid in resource.data.participant_ids || resource.data.initiator_uid == request.auth.uid);
+      allow create: if isAuthenticated() && request.resource.data.initiator_uid == request.auth.uid;
+      allow update: if isAuthenticated() && (request.auth.uid in resource.data.participant_ids || resource.data.initiator_uid == request.auth.uid);
+      allow delete: if false;
+    }
+
+    // 88. Translation Call Participants: translation_call_participants/{id}
+    match /translation_call_participants/{id} {
+      allow read: if isAuthenticated();
+      allow write: if isAuthenticated() && (resource == null || resource.data.uid == request.auth.uid);
+    }
+
+    // 89. Country Language Config: country_language_config/{countryCode}
+    match /country_language_config/{countryCode} {
+      allow read: if isAuthenticated();
+      allow write: if false;
+    }
+
+    // 90. Translation History: translation_history/{translationId}
+    match /translation_history/{translationId} {
+      allow read: if isAuthenticated() && resource.data.uid == request.auth.uid;
+      allow create: if isAuthenticated() && request.resource.data.uid == request.auth.uid;
+      allow delete: if isAuthenticated() && resource.data.uid == request.auth.uid;
+      allow update: if false;
+    }
+
+    // 91. Translation Usage: translation_usage/{usageId}
+    match /translation_usage/{usageId} {
+      allow read: if isAuthenticated() && resource.data.uid == request.auth.uid;
+      allow write: if false; // Server authoritative
+    }
+
+    // 92. Translation Usage Summary: translation_usage_summary/{uid}
+    match /translation_usage_summary/{uid} {
+      allow read: if isOwner(uid);
+      allow write: if false; // Server authoritative
+    }
+
+    // 93. Translation Audit Logs: translation_audit_logs/{logId}
+    match /translation_audit_logs/{logId} {
+      allow read: if isVerificationReviewStaff();
+      allow write: if false;
+    }
+
+    // =============================================================
+    // STEPS 14-15: PAYMENTS, GATEWAYS & FULFILLMENT LOGISTICS
+    // =============================================================
+
+    // Payment Methods: payment_methods/{methodId}
+    match /payment_methods/{methodId} {
+      allow read, write: if isAuthenticated() && resource.data.uid == request.auth.uid;
+      allow create: if isAuthenticated() && request.resource.data.uid == request.auth.uid;
+    }
+
+    // Payment Transactions: payment_transactions/{txId}
+    match /payment_transactions/{txId} {
+      allow read: if isAuthenticated() && (
+        resource.data.customerUid == request.auth.uid ||
+        resource.data.sellerUid == request.auth.uid ||
+        request.auth.token.role in ['admin', 'owner', 'finance_admin']
+      );
+      allow write: if false; // Server authoritative
+    }
+
+    // Payment Intents: payment_intents/{intentId}
+    match /payment_intents/{intentId} {
+      allow read: if isAuthenticated() && resource.data.customerUid == request.auth.uid;
+      allow write: if false; // Server authoritative
+    }
+
+    // Webhook Replay Protection: processed_webhook_events/{eventId}
+    match /processed_webhook_events/{eventId} {
+      allow read: if isAuthenticated() && request.auth.token.role in ['admin', 'owner', 'finance_admin'];
+      allow write: if false; // Server authoritative
+    }
+
+    // Delivery Orders: delivery_orders/{deliveryId}
+    match /delivery_orders/{deliveryId} {
+      allow read: if isAuthenticated() && (
+        resource.data.customerUid == request.auth.uid ||
+        resource.data.sellerUid == request.auth.uid ||
+        request.auth.token.role in ['admin', 'owner', 'delivery_admin']
+      );
+      allow write: if false; // Server authoritative
+    }
+
+    // Shipments: shipments/{shipmentId}
+    match /shipments/{shipmentId} {
+      allow read: if isAuthenticated() && (
+        resource.data.senderUid == request.auth.uid ||
+        resource.data.recipientUid == request.auth.uid ||
+        request.auth.token.role in ['admin', 'owner', 'delivery_admin']
+      );
+      allow write: if false; // Server authoritative
+    }
+
+    // =============================================================
+    // STEPS 16-17: ADMIN & OWNER PLATFORM CONTROL CENTER
+    // =============================================================
+
+    // Admin Roles & Permissions
+    match /admin_roles/{roleId} {
+      allow read: if isAuthenticated() && request.auth.token.role in ['admin', 'owner', 'super_admin', 'auditor'];
+      allow write: if false; // Server authoritative
+    }
+
+    match /admin_audit_logs/{logId} {
+      allow read: if isAuthenticated() && request.auth.token.role in ['owner', 'super_admin', 'auditor'];
+      allow write: if false; // Server authoritative
+    }
+
+    // Platform Configuration & Feature Flags
+    match /platform_configuration/{configId} {
+      allow read: if isAuthenticated();
+      allow write: if false; // Server authoritative
+    }
+
+    match /owner_delegates/{delegateId} {
+      allow read, write: if false; // Server authoritative only
+    }
+
+    match /feature_flags/{flagId} {
+      allow read: if isAuthenticated();
+      allow write: if false; // Server authoritative
+    }
+
+    match /emergency_controls/{controlId} {
+      allow read: if isAuthenticated();
+      allow write: if false; // Server authoritative
+    }
+
+    // =============================================================
+    // STEP 18: FINANCIAL LEDGER, COMMISSIONS & PAYOUTS
+    // =============================================================
+
+    // Double-Entry Financial Ledger
+    match /financial_ledger_entries/{entryId} {
+      allow read: if isAuthenticated() && request.auth.token.role in ['owner', 'finance_admin', 'auditor'];
+      allow write: if false; // Immutable double-entry engine
+    }
+
+    match /owner_financial_accounts/{accountId} {
+      allow read: if isAuthenticated() && request.auth.token.role in ['owner', 'finance_admin'];
+      allow write: if false; // Server authoritative
+    }
+
+    match /commission_rules/{ruleId} {
+      allow read: if isAuthenticated();
+      allow write: if false; // Server authoritative
+    }
+
+    match /seller_payout_requests/{payoutId} {
+      allow read: if isAuthenticated() && (
+        resource.data.sellerUid == request.auth.uid ||
+        request.auth.token.role in ['owner', 'finance_admin']
+      );
+      allow create: if isAuthenticated() && request.resource.data.sellerUid == request.auth.uid;
+      allow update, delete: if false; // Transitions managed by Cloud Functions
+    }
+
+    match /owner_withdrawal_requests/{withdrawalId} {
+      allow read: if isAuthenticated() && request.auth.token.role in ['owner', 'finance_admin'];
+      allow write: if false; // Server authoritative with MFA
+    }
+
+    match /financial_refunds/{refundId} {
+      allow read: if isAuthenticated() && (
+        resource.data.customerUid == request.auth.uid ||
+        resource.data.sellerUid == request.auth.uid ||
+        request.auth.token.role in ['owner', 'finance_admin']
+      );
+      allow write: if false;
+    }
+
+    match /financial_chargebacks/{chargebackId} {
+      allow read: if isAuthenticated() && (
+        resource.data.sellerUid == request.auth.uid ||
+        request.auth.token.role in ['owner', 'finance_admin']
+      );
+      allow write: if false;
+    }
+
+    match /financial_reconciliations/{runId} {
+      allow read: if isAuthenticated() && request.auth.token.role in ['owner', 'finance_admin', 'auditor'];
+      allow write: if false;
+    }
+
+    match /financial_audit_logs/{logId} {
+      allow read: if isAuthenticated() && request.auth.token.role in ['owner', 'finance_admin', 'auditor'];
+      allow write: if false;
+    }
+
+    match /financial_reports/{reportId} {
+      allow read: if isAuthenticated() && request.auth.token.role in ['owner', 'finance_admin'];
+      allow write: if false;
+    }
+
+    // =============================================================
+    // STEP 19: ZERO TRUST SECURITY HARDENING & ISOLATION
+    // =============================================================
+
+    // User Private Subcollections for Field-Level Security
+    match /users/{userId}/private/{docId} {
+      allow read, write: if isOwner(userId);
+    }
+
+    match /users/{userId}/security/{docId} {
+      allow read: if isOwner(userId);
+      allow write: if false; // Server authoritative
+    }
+
+    // Global User Device Registry (Max 4 active sessions enforced)
+    match /user_devices/{deviceId} {
+      allow read: if isAuthenticated() && (
+        resource.data.uid == request.auth.uid ||
+        request.auth.token.role in ['owner', 'health_security_admin']
+      );
+      allow create: if isAuthenticated() && request.resource.data.uid == request.auth.uid;
+      allow update: if isAuthenticated() && resource.data.uid == request.auth.uid
+        && request.resource.data.sessionStatus in ['ACTIVE', 'REVOKED'];
+      allow delete: if false;
+    }
+
+    // Health Passport Access Grants (Patient Consent Engine)
+    match /health_access_grants/{grantId} {
+      allow read: if isAuthenticated() && (
+        resource.data.patientUid == request.auth.uid ||
+        resource.data.requesterUid == request.auth.uid ||
+        request.auth.token.role in ['owner', 'health_security_admin']
+      );
+      allow create: if isAuthenticated() && request.resource.data.requesterUid == request.auth.uid;
+      allow update: if isAuthenticated() && resource.data.patientUid == request.auth.uid;
+      allow delete: if false;
+    }
+
+    // Health Passport Audit Logs (No medical data stored)
+    match /health_access_logs/{logId} {
+      allow read: if isAuthenticated() && (
+        resource.data.patientUid == request.auth.uid ||
+        request.auth.token.role in ['owner', 'health_security_admin']
+      );
+      allow write: if false; // Server authoritative
+    }
+
+    // Health QR Sessions
+    match /health_qr_sessions/{sessionId} {
+      allow read: if isAuthenticated() && (
+        resource.data.patientUid == request.auth.uid ||
+        request.auth.token.role in ['owner', 'health_security_admin']
+      );
+      allow write: if false; // Managed via callable Cloud Functions
+    }
+
+    // Security Events & Telemetry
+    match /security_events/{eventId} {
+      allow read: if isAuthenticated() && request.auth.token.role in ['owner', 'super_admin', 'health_security_admin', 'auditor'];
+      allow create: if isAuthenticated() && request.resource.data.uid == request.auth.uid;
+      allow update, delete: if false;
+    }
+
+    // Security Alerts
+    match /security_alerts/{alertId} {
+      allow read: if isAuthenticated() && request.auth.token.role in ['owner', 'super_admin', 'health_security_admin'];
+      allow write: if false; // Server authoritative
+    }
+
+    // Security Incidents
+    match /security_incidents/{incidentId} {
+      allow read: if isAuthenticated() && request.auth.token.role in ['owner', 'super_admin', 'health_security_admin'];
+      allow write: if isAuthenticated() && request.auth.token.role in ['owner', 'super_admin', 'health_security_admin'];
+    }
+
+    // Security Scorecards
+    match /security_scorecards/{scorecardId} {
+      allow read: if isAuthenticated() && request.auth.token.role in ['owner', 'super_admin', 'auditor'];
+      allow write: if false; // Server authoritative
+    }
+
+    // =============================================================
+    // STEP 20: FINAL BACKEND & DATABASE AUDIT RULES
+    // =============================================================
+
+    // User Profiles & Settings (Canonical Alias & Discovery)
+    match /user_profiles/{userId} {
+      allow read: if isAuthenticated();
+      allow create, update: if isOwner(userId)
+        && request.resource.data.uid == userId
+        && request.resource.data.account_type in ['individual', 'doctor', 'clinic', 'hospital', 'laboratory']
+        && (!('is_verified' in resource.data) || request.resource.data.is_verified == resource.data.is_verified);
+      allow delete: if false;
+    }
+
+    match /user_settings/{userId} {
+      allow read, write: if isOwner(userId);
+    }
+
+    match /user_sessions/{sessionId} {
+      allow read: if isAuthenticated() && (
+        resource.data.uid == request.auth.uid ||
+        request.auth.token.role in ['owner', 'super_admin']
+      );
+      allow write: if false; // Server authoritative
+    }
+
+    match /user_restrictions/{restrictionId} {
+      allow read: if isAuthenticated() && (
+        resource.data.uid == request.auth.uid ||
+        request.auth.token.role in ['owner', 'super_admin', 'moderation_admin']
+      );
+      allow write: if isAuthenticated() && request.auth.token.role in ['owner', 'super_admin', 'moderation_admin'];
+    }
+
+    match /account_actions/{actionId} {
+      allow read: if isAuthenticated() && (
+        resource.data.target_uid == request.auth.uid ||
+        request.auth.token.role in ['owner', 'super_admin', 'moderation_admin']
+      );
+      allow write: if isAuthenticated() && request.auth.token.role in ['owner', 'super_admin', 'moderation_admin'];
+    }
+
+    match /account_deletion_requests/{requestId} {
+      allow read: if isAuthenticated() && (
+        resource.data.uid == request.auth.uid ||
+        request.auth.token.role in ['owner', 'super_admin']
+      );
+      allow create: if isAuthenticated() && request.resource.data.uid == request.auth.uid;
+      allow update, delete: if false; // Server authoritative processing
+    }
+
+    match /account_export_requests/{requestId} {
+      allow read: if isAuthenticated() && (
+        resource.data.uid == request.auth.uid ||
+        request.auth.token.role in ['owner', 'super_admin']
+      );
+      allow create: if isAuthenticated() && request.resource.data.uid == request.auth.uid;
+      allow update, delete: if false; // Server authoritative processing
+    }
+
+    match /login_security_events/{eventId} {
+      allow read: if isAuthenticated() && (
+        resource.data.uid == request.auth.uid ||
+        request.auth.token.role in ['owner', 'super_admin', 'health_security_admin']
+      );
+      allow create: if isAuthenticated() && request.resource.data.uid == request.auth.uid;
+      allow update, delete: if false;
+    }
+
+    match /authentication_events/{eventId} {
+      allow read: if isAuthenticated() && (
+        resource.data.uid == request.auth.uid ||
+        request.auth.token.role in ['owner', 'super_admin', 'health_security_admin']
+      );
+      allow write: if false;
+    }
+
+    // Notifications & Preferences
+    match /notifications/{notificationId} {
+      allow read: if isAuthenticated() && resource.data.uid == request.auth.uid;
+      allow update: if isAuthenticated() && resource.data.uid == request.auth.uid
+        && request.resource.data.diff(resource.data).affectedKeys().hasOnly(['is_read', 'read_at']);
+      allow create, delete: if false; // Server authoritative (Cloud Functions dispatch)
+    }
+
+    match /notification_preferences/{userId} {
+      allow read, write: if isOwner(userId);
+    }
+
+    // Marketplace Carts, Wishlists & Multi-Tier Orders
+    match /shopping_carts/{cartId} {
+      allow read, write: if isAuthenticated() && (
+        resource == null || resource.data.customer_uid == request.auth.uid
+      );
+    }
+
+    match /wishlists/{wishlistId} {
+      allow read, write: if isAuthenticated() && (
+        resource == null || resource.data.customer_uid == request.auth.uid
+      );
+    }
+
+    match /order_suborders/{suborderId} {
+      allow read: if isAuthenticated() && (
+        resource.data.customer_uid == request.auth.uid ||
+        resource.data.seller_uid == request.auth.uid ||
+        request.auth.token.role in ['owner', 'finance_admin', 'super_admin']
+      );
+      allow write: if false; // Server authoritative (Cloud Functions order processing)
+    }
+
+    match /webhook_events/{eventId} {
+      allow read, write: if false; // Backend service only
+    }
+
+    // System Data Integrity Reports
+    match /data_integrity_reports/{reportId} {
+      allow read: if isAuthenticated() && request.auth.token.role in ['owner', 'super_admin', 'auditor'];
+      allow write: if false; // Scheduled Cloud Function authoritative
+    }
+
+
+  }
+}

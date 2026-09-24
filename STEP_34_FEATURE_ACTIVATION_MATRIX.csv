@@ -1,0 +1,15 @@
+feature,environment,country,account type,current flag,rollout percentage,enabled date,owner,security status,QA status,monitoring status,rollback method,incident owner,status
+Health Passport 2.1 Core,PRODUCTION,OM;SA;AE;US,INDIVIDUAL;DOCTOR;CLINIC;HOSPITAL;LABORATORY,health_passport_2_1_enabled,100,2026-09-19,Lead Architect,PASS,PASS,ACTIVE,RemoteConfig + Server KillSwitch,SRE Lead,ACTIVE
+Health Connect Telemetry,PRODUCTION,OM;SA;AE;US,INDIVIDUAL,health_connect_enabled,50,2026-09-19,Mobile Release Lead,PASS,PASS,ACTIVE,RemoteConfig (disable_health_connect),Android SRE,CONTROLLED ROLLOUT
+HL7 FHIR R4 Export,PRODUCTION,OM;SA;AE;US,INDIVIDUAL;DOCTOR;CLINIC;HOSPITAL;LABORATORY,fhir_export_enabled,100,2026-09-19,Interop Lead,PASS,PASS,ACTIVE,RemoteConfig (disable_fhir_export),Interop SRE,ACTIVE
+HL7 FHIR R4 Import,PRODUCTION,OM;SA,INDIVIDUAL;DOCTOR,fhir_import_enabled,30,2026-09-19,Interop Lead,PASS,PASS,ACTIVE,RemoteConfig (disable_fhir_import),Interop SRE,CONTROLLED ROLLOUT
+Healthcare Partner Gateway,PRODUCTION,OM;SA,CLINIC;HOSPITAL;LABORATORY,healthcare_integration_enabled,30,2026-09-19,Healthcare Partner Lead,PASS,PASS,ACTIVE,RemoteConfig (disable_healthcare_integrations),Partner SRE,CONTROLLED ROLLOUT
+Multi-Provider Appointments 2.1,PRODUCTION,OM;SA;AE;US,INDIVIDUAL;DOCTOR;CLINIC;HOSPITAL;LABORATORY,appointments_2_1_enabled,100,2026-09-19,Product Lead,PASS,PASS,ACTIVE,RemoteConfig (disable_appointments),SRE Lead,ACTIVE
+Emergency Health Card,PRODUCTION,OM;SA;AE;US,INDIVIDUAL,emergency_health_card_enabled,100,2026-09-19,Clinical Safety Lead,PASS,PASS,ACTIVE,RemoteConfig (disable_emergency_health_card),Security SRE,ACTIVE
+Healthcare AI Assistance,PRODUCTION,OM;SA;AE,INDIVIDUAL;DOCTOR,healthcare_ai_enabled,50,2026-09-19,AI Safety Lead,PASS,PASS,ACTIVE,RemoteConfig (disable_healthcare_ai),AI SRE,CONTROLLED ROLLOUT
+Paper Prescription OCR,PRODUCTION,OM;SA;AE,INDIVIDUAL;DOCTOR;CLINIC;HOSPITAL,paper_prescription_ocr_enabled,40,2026-09-19,Clinical Lead,PASS,PASS,ACTIVE,RemoteConfig + Clinician Gate,OCR SRE,CONTROLLED ROLLOUT
+Health Data Portability (GDPR),PRODUCTION,OM;SA;AE;US,INDIVIDUAL,health_data_portability_enabled,100,2026-09-19,Privacy Officer,PASS,PASS,ACTIVE,RemoteConfig (disable_health_data_exports),Privacy SRE,ACTIVE
+Multilingual Arabic RTL,PRODUCTION,OM;SA;AE;US,INDIVIDUAL;DOCTOR;CLINIC;HOSPITAL;LABORATORY,arabic_rtl_enabled,100,2026-09-19,i18n Lead,PASS,PASS,ACTIVE,Client Fallback to LTR,Mobile SRE,ACTIVE
+Creator Monetization,PRODUCTION,OM;SA;AE;US,INDIVIDUAL,creator_monetization_enabled,100,2026-09-19,FinOps Lead,PASS,PASS,ACTIVE,RemoteConfig KillSwitch,FinOps SRE,ACTIVE
+Seller Marketplace Monetization,PRODUCTION,OM;SA;AE;US,SELLER;CUSTOMER,seller_monetization_enabled,100,2026-09-19,Commerce Lead,PASS,PASS,ACTIVE,RemoteConfig KillSwitch,Commerce SRE,ACTIVE
+Organization Enterprise Plans,PRODUCTION,OM;SA;AE,CLINIC;HOSPITAL;LABORATORY,organization_plans_enabled,50,2026-09-19,Enterprise Lead,PASS,PASS,ACTIVE,RemoteConfig KillSwitch,Enterprise SRE,CONTROLLED ROLLOUT

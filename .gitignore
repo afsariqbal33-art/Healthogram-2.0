@@ -1,0 +1,73 @@
+# Environment and Secrets (CRITICAL: NEVER COMMIT)
+.env
+.env.*
+!.env.example
+*.env
+*.secrets
+secrets.xml
+
+# Keystores and Signing Secrets
+*.keystore
+*.jks
+*.key
+*.p12
+*.pem
+*.pfx
+key.properties
+signing.properties
+release-keystore.properties
+
+# Cloud and Service Accounts Private Credentials
+service-account*.json
+serviceAccountKey*.json
+google-services-private*.json
+*-credentials.json
+client_secret*.json
+oauth_client*.json
+stripe_secret*.json
+paypal_secret*.json
+
+# SSH & Git tokens
+id_rsa
+id_rsa.pub
+id_ed25519
+id_ed25519.pub
+.git-credentials
+
+# Build Outputs & Gradle Artifacts
+.gradle/
+build/
+app/build/
+.kotlin/
+captures/
+.externalNativeBuild/
+.cxx/
+coverage/
+*.log
+
+# Large Binary Artifacts (Publish via GitHub Releases / Play Console)
+*.apk
+*.aab
+*.zip
+*.dm
+
+# System & OS Files
+.DS_Store
+Thumbs.db
+ehthumbs.db
+desktop.ini
+
+# IDE and Editor Files
+*.iml
+.idea/
+.vscode/
+local.properties
+/local.properties
+*.class
+
+# CI & Temporary Files
+*.tmp
+*.bak
+*.swp
+*~
+debug.keystore.base64

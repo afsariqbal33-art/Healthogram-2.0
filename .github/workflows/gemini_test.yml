@@ -1,0 +1,43 @@
+name: Healthogram Test & Verification Suite
+
+on:
+  push:
+    branches:
+      - develop
+      - 'release/**'
+      - 'feature/**'
+  pull_request:
+    branches:
+      - develop
+      - main
+
+permissions:
+  contents: read
+
+jobs:
+  test_modules:
+    name: Core Modules & QA Test Verification
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout Code
+        uses: actions/checkout@v4
+
+      - name: Set up JDK 17
+        uses: actions/setup-java@v4
+        with:
+          distribution: 'temurin'
+          java-version: '17'
+          cache: 'gradle'
+
+      - name: Run Production Acceptance Test Suite
+        run: |
+          chmod +x ./gradlew || true
+          gradle :app:testDebugUnitTest --tests "com.example.healthogram.qa.*" || ./gradlew :app:testDebugUnitTest --tests "com.example.healthogram.qa.*"
+
+      - name: Run Financial Ledger & Payment Tests
+        run: |
+          gradle :app:testDebugUnitTest --tests "com.example.healthogram.finance.*" --tests "com.example.healthogram.payments.*" || ./gradlew :app:testDebugUnitTest --tests "com.example.healthogram.finance.*" --tests "com.example.healthogram.payments.*"
+
+      - name: Run Health Passport Zero-Trust Security Tests
+        run: |
+          gradle :app:testDebugUnitTest --tests "com.example.healthogram.HealthPassportSecurityTest" || ./gradlew :app:testDebugUnitTest --tests "com.example.healthogram.HealthPassportSecurityTest"

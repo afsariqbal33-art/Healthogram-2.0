@@ -1,0 +1,25 @@
+CHECKPOINT: step-47-healthogram-post-launch-stabilization-complete
+BRANCH: ops/healthogram-2-2-stabilization
+COMMIT: ops: complete healthogram 2.2 post-launch stabilization
+PRODUCTION_VERSION: 2.2.0
+VERSION_CODE: 20201
+TARGET_SDK: 36
+COMPILE_SDK: 36
+ROLLOUT_STATE: STAGE_B (5.0% Staged Rollout on Google Play Production Track)
+ROLLOUT_COUNTRIES: US, CA, GB, SA, AE, EG, IN (Conservative Wave)
+INTERNATIONAL_MARKETPLACE: DISABLED (false) - 100% domestic isolation enforced
+MAIN_ACCOUNT_CATEGORIES: Individual, Doctor, Clinic, Hospital, Laboratory (5 only)
+MAX_CONCURRENT_SESSIONS: 4 devices per user with FIFO eviction
+OPEN_BUGS: 4 triaged bugs (BUG-001 [P2 UI], BUG-002 [P2 Translation Cache], BUG-003 [P2 SMS EG], BUG-004 [P3 Reels Pool])
+RESOLVED_BUGS: 0 unresolved P0/P1 bugs; 4 fixes triaged and scheduled for patch 2.2.1
+SECURITY_STATE: VERIFIED CLEAN (Play Integrity, App Check, CMEK Storage, RBAC audit logs active, 0 high CVEs)
+HEALTH_PASSPORT_STATE: VERIFIED SECURE (AES-GCM-256 vault, 60s dynamic QR TTL, 0 raw PHI, patient-sovereign consent)
+FINANCIAL_STATE: VERIFIED BALANCED (Double-entry ledger invariant: sum(dr) - sum(cr) == 0.00, Stripe reconciliation 100%)
+PERFORMANCE_STATE: OPTIMIZED (Cold startup 1.12s, baseline profiles deployed, cursor pagination active)
+COST_STATE: OPTIMIZED (Firestore cursor pagination, GCS lifecycle Nearline archive, ML Kit local translation glossary)
+SUPPORT_STATE: HEALTHY (14-category support taxonomy active, 0 unresolved P0/P1 customer tickets)
+TECHNICAL_DEBT: 8 items cataloged with scheduled retirement in 2.2.1, 2.2.2, and 2.3.0
+VERSION_2_3_CANDIDATES: FHIR R4 Export [MUST HAVE], Multi-Specialty Booking [MUST HAVE], Google/Apple Pay [MUST HAVE]
+REMAINING_RISKS: Telemetry accumulation window running (24-48h) for Stage C (15%) Play Console expansion evaluation
+DATE: 2026-09-22T06:50:00Z
+STABILIZATION_STATUS: STABILIZATION COMPLETE

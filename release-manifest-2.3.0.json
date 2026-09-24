@@ -1,0 +1,86 @@
+{
+  "version": "2.3.0",
+  "build_number": 23000,
+  "git_commit": "40b60d8a5de27d04f6479f64bf54c7d0d084d5df",
+  "git_tag": "v2.3.0",
+  "branch": "release/2.3.0",
+  "aab_checksum": "b003a490b32dfffb7d2cf2abc47153b81cca235a4add1db698c523305323d96e",
+  "apk_checksum": "209d767d3e877a5f2e84ef9b3edba77ab807685a84a00b2c2ab9ff353191b5d9",
+  "source_zip_checksum": "8d30657d03fb52ea70476bc72f70b60f173e2a55add8b30363780fcda6f9406f",
+  "application_id": "com.aistudio.healthogram.hkqvpm",
+  "namespace": "com.example",
+  "target_sdk": 36,
+  "compile_sdk": 36,
+  "min_sdk": 24,
+  "signing_identity_reference": "Google Play App Signing (Release Upload Certificate SHA-256 Validated)",
+  "build_timestamp": "2026-09-23T14:30:00Z",
+  "environment": "production",
+  "firebase_project": "healthogram-prod-2026",
+  "api_version": "v2.3",
+  "database_migration_version": "2.3.0-expand-contract",
+  "firestore_rules_version": "2.3.0-locked",
+  "storage_rules_version": "2.3.0-locked",
+  "enabled_feature_flags": [
+    "health_passport_v2_enabled",
+    "fhir_r4_ingestion_enabled",
+    "health_connect_sync_enabled",
+    "appointments_booking_enabled",
+    "marketplace_catalog_enabled",
+    "marketplace_checkout_enabled",
+    "courier_delivery_tracking_enabled",
+    "social_feed_enabled",
+    "reels_enabled",
+    "messaging_enabled",
+    "webrtc_teleconsultation_enabled",
+    "ai_studio_creative_tools_enabled",
+    "translation_service_enabled"
+  ],
+  "disabled_feature_flags": [
+    "international_marketplace_enabled",
+    "webrtc_auto_record_enabled",
+    "emergency_maintenance_mode",
+    "killswitch_all_traffic"
+  ],
+  "enabled_countries": [
+    "SA",
+    "AE",
+    "US",
+    "GB",
+    "EG",
+    "IN"
+  ],
+  "enabled_account_categories": [
+    "INDIVIDUAL",
+    "DOCTOR",
+    "CLINIC",
+    "HOSPITAL",
+    "LABORATORY"
+  ],
+  "prohibited_account_categories": [
+    "PHARMACY",
+    "MEDICAL_STORE",
+    "MEDICINE_COMPANY",
+    "WHOLESALE",
+    "SUPPLIER",
+    "EQUIPMENT_MANUFACTURER",
+    "EQUIPMENT_SUPPLIER"
+  ],
+  "marketplace_roles": [
+    "CUSTOMER",
+    "SELLER"
+  ],
+  "seller_types": [
+    "INDIVIDUAL_SELLER",
+    "BUSINESS_SELLER"
+  ],
+  "max_simultaneous_device_sessions": 4,
+  "session_idle_timeout_minutes": 15,
+  "qr_token_ttl_seconds": 60,
+  "delivery_location_throttle_seconds": 5,
+  "seller_escrow_hold_days": 7,
+  "release_engineer": "Senior Release, Production & Security Engineering Team",
+  "qa_status": "VERIFIED",
+  "security_status": "VERIFIED",
+  "play_console_submission_status": "SUBMISSION_READY / STAGED_ROLLOUT_PREPARED",
+  "google_play_review_status": "REQUIRES_VALIDATION"
+}

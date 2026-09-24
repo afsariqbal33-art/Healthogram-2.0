@@ -1,0 +1,26 @@
+domain,metric,target,actual,trend,status,owner,action
+platform,Crash-Free Users,>= 99.80%,99.94%,STABLE,EXCELLENT,Mobile Release Lead,Maintain current ProGuard/R8 configurations
+platform,ANR Rate,< 0.050%,0.011%,IMPROVING,EXCELLENT,Android Lead,Preserve background IO threading
+platform,App Check Attestation Pass Rate,>= 99.80%,99.97%,STABLE,EXCELLENT,Security Architect,Maintain Play Integrity token checks
+security,Critical Vulnerabilities (P0),0,0,STABLE,PERFECT,CISO,Weekly dependency scans
+security,Session Concurrency Ceiling,4 Devices,4 Devices (Enforced),STABLE,PERFECT,Auth Lead,Continuous oldest-device eviction
+Health Passport,Unauthorized Access Incidents,0,0,STABLE,PERFECT,Healthcare Architect,Enforce zero-trust granular consent
+Health Passport,P95 Read Latency,< 100ms,22ms,IMPROVING,EXCELLENT,Database Lead,Maintain Room local delta caching
+FHIR,FHIR R4 Export Success Rate,>= 99.90%,99.92%,STABLE,EXCELLENT,Interop Lead,Monitor 16 normative model schemas
+FHIR,FHIR R4 Import Schema Conformance,>= 99.00%,99.45%,STABLE,HEALTHY,Interop Lead,Partner onboarding certification gates
+Health Connect,Sync Success Rate,>= 99.50%,99.86%,STABLE,EXCELLENT,Mobile Lead,6-hour background sync interval
+Health Connect,Commercial / Ad Airgap Violations,0,0,STABLE,PERFECT,Privacy Officer,Maintain architectural isolation
+appointments,Double-Booking Conflicts,0,0,STABLE,PERFECT,Product Lead,Maintain atomic Firestore slot reservations
+appointments,Diagnostic Disclosure in Push Alerts,0,0,STABLE,PERFECT,Clinical Lead,Payload sanitizer verification
+marketplace,Order Placement Success Rate,>= 99.80%,99.82%,STABLE,EXCELLENT,Commerce Lead,Ledger reconciliation automation
+marketplace,International Marketplace Gating,Disabled (false),Disabled (0 orders),STABLE,PERFECT,Legal / FinOps Lead,Enforce Section 36 governance gate
+payments,Ledger Settlement Discrepancies,0.00 OMR,0.00 OMR,STABLE,PERFECT,FinOps Lead,Daily automated minor-unit reconciliation
+delivery,Fulfillment with OTP Proof,>= 99.50%,99.80%,STABLE,EXCELLENT,Logistics Lead,Local courier partner SLA tracking
+messaging,P95 E2E Delivery Latency,< 250ms,115ms,IMPROVING,EXCELLENT,Communication Lead,Firestore real-time listener tuning
+calls,WebRTC Audio Call Completion Rate,>= 99.00%,99.40%,STABLE,HEALTHY,Audio Lead,TURN/STUN server multi-region scaling
+translation,P95 Translation Latency,< 200ms,140ms,STABLE,EXCELLENT,i18n Lead,Batch translation caching
+AI,Unsafe Diagnostic Prompt Interceptions,100% Blocked,100% Blocked (86/86),STABLE,PERFECT,AI Safety Lead,Maintain clinical term airgaps
+AI,Daily Token Quota Enforcement,100% Server Enforced,100% Server Enforced,STABLE,PERFECT,AI FinOps Lead,checkAndDeductAiQuota active
+social,Health Passport Data Leak into Feed,0,0,STABLE,PERFECT,Social Lead,Zero cross-query permission rules
+admin,Non-privileged Moderation Enforcement,0 PHI Visible,0 PHI Visible,STABLE,PERFECT,Security Architect,Multi-tenant rules validation
+owner finance,Platform Revenue Reconciliation Drift,0.00 OMR,0.00 OMR,STABLE,PERFECT,FinOps Lead,Automated daily payout reconciliation

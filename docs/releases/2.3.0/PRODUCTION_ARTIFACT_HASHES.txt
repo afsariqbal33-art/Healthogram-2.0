@@ -1,0 +1,8 @@
+# HEALTHOGRAM 2.3.0 RELEASE CANDIDATE ARTIFACT HASHES
+# Generation Timestamp: 2026-09-23T14:30:00Z
+# Target Platform: Android 16 (API 36) | Min SDK 24
+# Version: 2.3.0 (versionCode 23000)
+
+b003a490b32dfffb7d2cf2abc47153b81cca235a4add1db698c523305323d96e  Healthogram-2.3.0-release.aab
+209d767d3e877a5f2e84ef9b3edba77ab807685a84a00b2c2ab9ff353191b5d9  Healthogram-2.3.0-release.apk
+8d30657d03fb52ea70476bc72f70b60f173e2a55add8b30363780fcda6f9406f  Healthogram-2.3.0-source.zip

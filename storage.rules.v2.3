@@ -1,0 +1,57 @@
+// Healthogram 2.3 Production Storage Security Rules
+// Version: 2.3.0
+// Release: develop/healthogram-2-3
+
+rules_version = '2';
+service firebase.storage {
+  match /b/{bucket}/o {
+
+    function isAuthenticated() {
+      return request.auth != null && request.auth.uid != null;
+    }
+
+    function isOwner(userId) {
+      return isAuthenticated() && request.auth.uid == userId;
+    }
+
+    function isPlatformAdmin() {
+      return isAuthenticated() && request.auth.token.admin == true;
+    }
+
+    // Public / Social Media Assets
+    match /users/{userId}/profile/{allPaths=**} {
+      allow read: if true;
+      allow write: if isOwner(userId);
+    }
+
+    match /users/{userId}/social/{allPaths=**} {
+      allow read: if true;
+      allow write: if isOwner(userId);
+    }
+
+    // STRICTLY PRIVATE HEALTH STORAGE VAULT (CMEK-Backed)
+    // Rule: Medical files must NEVER become publicly readable by default.
+    match /health/{patientUid}/documents/{allPaths=**} {
+      allow read: if isOwner(patientUid) || isPlatformAdmin();
+      allow write: if isOwner(patientUid);
+    }
+
+    match /health/{patientUid}/prescriptions/{allPaths=**} {
+      allow read: if isOwner(patientUid) || isPlatformAdmin();
+      allow write: if isOwner(patientUid) || 
+                   (isAuthenticated() && request.auth.token.accountType in ['Doctor', 'Hospital']);
+    }
+
+    match /health/{patientUid}/reports/{allPaths=**} {
+      allow read: if isOwner(patientUid) || isPlatformAdmin();
+      allow write: if isOwner(patientUid) || 
+                   (isAuthenticated() && request.auth.token.accountType in ['Laboratory', 'Clinic', 'Hospital']);
+    }
+
+    match /health/{patientUid}/bills/{allPaths=**} {
+      allow read: if isOwner(patientUid) || isPlatformAdmin();
+      allow write: if isOwner(patientUid) || 
+                   (isAuthenticated() && request.auth.token.accountType in ['Clinic', 'Hospital', 'Laboratory']);
+    }
+  }
+}
