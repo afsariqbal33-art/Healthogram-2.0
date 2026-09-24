@@ -1,5 +1,2 @@
-APK SHA-256:
 68d123b69d9bc37709cadf9bc40cf6d3d8482d38eb8de86fc6b74526301fc041  Healthogram-2.3.0-release.apk
-
-AAB SHA-256:
 ca5604f7c490ea0e907640fbce6f416d451aed5b91b01cf854fcadbf3b04a15a  Healthogram-2.3.0-release.aab

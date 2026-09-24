@@ -1,0 +1,35 @@
+HEALTHOGRAM 2.3.0 PRODUCTION RELEASE MANIFEST
+================================================================================
+Release Tag:                     v2.3.0
+Release Title:                   Healthogram 2.3.0 Production Release
+Application ID:                  com.aistudio.healthogram.hkqvpm
+Version Name:                    2.3.0
+Version Code:                    23000
+Target SDK:                      36 (Android 16)
+Compile SDK:                     36
+Min SDK:                         24 (Android 7.0)
+Git Commit:                      8264c634963231ca2a750854028b51c950d8c153
+Git Branch:                      main
+Build Date:                      2026-09-24T22:52:43Z
+
+ARTIFACTS
+--------------------------------------------------------------------------------
+1. Healthogram-2.3.0-release.apk
+   Canonical Build Path:         app/build/outputs/apk/release/app-release.apk
+   Size:                         23,821,505 bytes (~22.72 MB)
+   SHA-256:                      68d123b69d9bc37709cadf9bc40cf6d3d8482d38eb8de86fc6b74526301fc041
+   Signature Scheme:             APK Signature Scheme v2 (Verified)
+
+2. Healthogram-2.3.0-release.aab
+   Canonical Build Path:         app/build/outputs/bundle/release/app-release.aab
+   Size:                         23,229,626 bytes (~22.15 MB)
+   SHA-256:                      ca5604f7c490ea0e907640fbce6f416d451aed5b91b01cf854fcadbf3b04a15a
+   Format:                       Android App Bundle (Google Play Store Ready)
+
+VERIFICATION SUMMARY
+--------------------------------------------------------------------------------
+Unit & Integration Tests:        37 test suites passed (0 failures)
+Lint Vital Analysis:             Passed (0 errors)
+Security Hardening Suites:       All Attack Suites Passed (Marketplace, AI, Scale, Auth)
+Play App Signing Compatibility:  Enabled & Verified
+================================================================================
